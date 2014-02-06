@@ -1,0 +1,194 @@
+CRYSTAL- Cyber Simulation, Training and Exercise Platform
+
+1. Summary
+
+The fast increasing cyber-criminality is in the focus of todays information age. Espionage and cyber-criminality costs the economy globally a lot of money. Lost of data or intellectual property, cyber-criminalty and other action in cyberspace are also responsible for declining confidence in internet activity as well as increasing pressure on government and armed forces.
+
+Therefore it is vital to sensitize multiple user groups to this topic. One medium to do that, is the Cyber Training Platform CRYSTAL. Within this specially for cyber-security built infrastructure, it is possible to acquire skills in the following domains:
+
+* Technical exercise (on a technical level)
+* Command and Control exercise (on an operational level)
+* Combination of technical and Command & Control exercise
+
+2. Introduction
+
+2.1 Initial situation
+
+Trough new information and communication techniques, vulnerability of political and society processes gets a new dimension. Market is reacting to this change with new product, which deals with threats from cyber-security. Often the education and exercising of his own skills and interactions are trained separately, because no integrated exercise platform is available.
+The Cyber Training Platform will close this gap with corresponding training infrastructure. On this infrastructure it is possible to train specially designed scenarios. Each scenario has its own participant who shall fulfill special tasks.
+
+2.2 Goal and purpose
+
+CRYSTAL is the environment for users with the following goals and purposes:
+
+* Situation awareness
+** Dealing with a lot of information on technical side.
+** Dealing with the right information for leaders.
+** Check, if cyber issues are recognized in time
+
+* Situation handling
+** Coordination and information exchange
+** Check of internal processes to deal with crisis situation
+** Coordination of measures outside the own organisation
+
+* Situation dealing
+** Coordination of measures within a team
+** check if participants are able to make correct counter-measures
+** Increasing of comprehension of consequences of given counter-measures
+
+2.3 OpenSource
+
+This is a opensource project. Development and modularity follows the opensource process way of going. Versions of tools and code are also pushed on this github repository (confidence for other volunteers to participate)
+
+2.4 Roadmap
+
+The project is divided into 3 phases:
+
+Phase I: Infrastucture
+Phase II: Technical Layer, working Scenario 
+Phase III: Operational Layer, Integration Exito 
+
+2.4.1 Phase I: Infrastucture
+
+* Definition and build of infrastucture
+* Build a ready to use hardware plattform
+* Evaluation integration of Emulab into OpenNebula
+* Setup and Configuration of OpenNebula and Emulab
+
+2.4.2 Phase II: Technical Layer, working Scenario
+
+* Design of Szenario
+* Build a working scenario with all required elements (server, services)
+
+2.4.3 Phase III: Operational Layer, Integration Exito
+
+* Integration of Exito
+* Build tools and processes for operational level
+
+3 CRYSTAL Infrastucture
+
+3.1 Infrastructure "Software"
+
+CRYSTAL is built on a cloud based infrastructure. This allows the CRYSTAL operator to adapt quickly on different scenarios. Target of this CRYSTAL is an integration and combination of the following open-source projects:
+
+* Open Nebula http://opennebula.org/
+* Emulab https://www.emulab.net/
+* Exito http://sourceforge.net/projects/exito/
+
+There is no working combination of openNebula and emulab at the moment. This will be evaluated in the first phase of the project.
+
+3.1.1 Open Nebula
+
+OpenNebula provides the most simple but feature-rich and flexible solution for the comprehensive management of virtualized data centers to enable on-premise IaaS clouds. OpenNebula interoperability makes cloud an evolution by leveraging existing IT assets, protecting your investments, and avoiding vendor lock-in.
+
+OpenNebula can be primarily used as a platform to manage your virtualized infrastructure in the data center or cluster, which is usually referred as Private Cloud. OpenNebula supports Hybrid Cloud to combine local infrastructure with public cloud-based infrastructure, enabling highly scalable hosting environments. OpenNebula also supports Public Clouds by providing Cloud interfaces to expose its functionality for virtual machine, storage and network management.
+
+3.1.2 Emulab
+
+Emulab is a network testbed, giving researchers a wide range of environments in which to develop, debug, and evaluate their systems. The name Emulab refers both to a facility and to a software system. The primary Emulab installation is run by the Flux Group, part of the School of Computing at the University of Utah. There are also installations of the Emulab software at more than two dozen sites around the world, ranging from testbeds with a handful of nodes up to testbeds with hundreds of nodes. Emulab is widely used by computer science researchers in the fields of networking and distributed systems. It is also designed to support education, and has been used to teach classes in those fields.
+
+
+3.1.3 Exito
+
+EXITO, the EXercise event Injection TOolkit, has been developed in order to help the moderators of large scale, multi-party exercises. It has been designed as a communication and coordination tool to keep in track the execution of complex exercises with large number of injects and players.
+
+EXITO can be used:
+* by exercise moderators to run an exercise scenario in a timely and ordered fashion, injecting events to the users through the web interface;
+* by exercise players to view injected events and provide feedback in a centralized repository;
+* by exercise observers to view the way an exercise progresses.
+
+3.1.4 Third Party / Real Systems
+
+For the future, a CRYSTAL should be able to simulate and/or import real systems into the virtual environment. Participants shall then be able to work with the imported system.
+
+3.2 Infrastructure "Hardware"
+
+3.2.1 Host-Server
+
+Base of the CRYSTAL Infrastructure is a number of servers that hosts all resource like virtual machines, virtual network elements. Host servers should have enough performance to handle a number of virtual machines.
+
+* > 100 VM with each ~ 2-4 GB Ram and ~ 10-50 GB Storage
+
+Recommendation:
+* ~ 4 Host-Server with 128-256 GB Ram
+* 12-16 CPU Cores
+* 10 GBit/s Ethernet Interface
+* Dedicated Interface for Storage Access
+
+* Blade Center with High Performance Backplane
+
+3.2.2 Storage
+
+All Ressources are stored on a central-managed storage system. It is vital, that the storage has enough performance to handle all resources of the CRYSTAL infrastructure.
+
+Recommended capacity of storage
+* ~20 TB for Virtual Disks & Images
+* ~10-20 TB for Network Packet Capture & Protocol (this could be a dedicated storage)
+
+3.2.3 Network
+
+Connectivity between all resources are handled via network components (physical & virtual). Performance and throughput are vital for a well functioning CRYSTAL infrastructure.
+
+It is possible to change properties of network connections. This could be:
+
+* Bandwith capacity
+* Link quality
+* Availability
+
+3.3 Scalability & Modularity
+
+The CRYSTAL infrastructure shall be build in a scalable and modular way, so for the future it should be easy to extend the infrastructure. It is also important that the CRYSTAL infrastructure can be connected to other distributed CRYSTAL for a scalable global training with other organizations.
+
+[Image: Skalierbarkeit.pdf]
+
+4 Operation
+
+4.1 Scenarios
+
+Each Exercise is managed by a scenario management. A scenario contains the following elements
+
+*Organisation (which is part of a company, institution or state) with
+* Services
+** Clients
+** Server
+* Network connection between elements
+* Data
+
+Interactions within the scenario is composed by theses elements:
+* Users
+* Service
+* Events that can be injected
+
+[Image: Simulationsmöglichkeiten.pdf]
+
+4.1.1 Technical exercise
+
+In a technial exercise the goal is to exercise participants on a technical level. They learn how to deal with cyber-attacks on their it-infrastructure
+
+4.1.2 Command and Control exercise
+
+In a command exercise the goal is to exercise participants on a command & operative level. Training of internal processes to deal with crisis situation under a cyber-issues. Coordination of information exchange and the comprehension of consequences by a given counter-measure.
+For command exercise, the technical level has to be simulated and events are being injected (manual or automatic)
+
+4.1.3 Combination of technical & command exercise
+
+The combination trains the participant on a technical and command & control level.
+Participants are divided into groups ; one or more technical groups as well as one or more command & control groups.
+
+4.2 Operational Level
+
+For command exercise a vital part of the CRYSTAL are the capabilities for the operational level. These capabilities can be described as:
+
+* Dashboard for an overview of the current situation if the technical level is simulated.
+* Simulation of consequences of measures.
+
+4.3 After action
+
+After a scenario run, it is important to generate a after action report for a review and lesson learned to the participant. An after action report should contain:
+
+* Timeline of Events during Esercise
+* Evaluation of measures
+* Evaluation of communication behavior on operation level
+* Evaluation of decision impact.
+...
+
