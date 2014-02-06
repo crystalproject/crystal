@@ -11,6 +11,9 @@ Therefore it is vital to sensitize multiple user groups to this topic. One mediu
 * Command and Control exercise (on an operational level)
 * Combination of technical and Command & Control exercise
 
+
+www.crystalproject.ch
+
 2. Introduction
 
 2.1 Initial situation
