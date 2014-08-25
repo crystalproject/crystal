@@ -1,0 +1,9 @@
+0. Prepare three vms: server, victim and attacker (they are available but it is not yet clear how we distribute these and others). NOTE: suggestions on what to consider when creating vms for a scenario follows later
+1. execute ./setup.sh
+2. sunstone interface: create two virtual networks, for each switch one (ssh1-sw0, ssh1-sw1) in the same ip range (type OpenvSwitch, no vlan)
+3. attach server & attacker vm to ssh1-sw0 & victim to ssh1-sw1 (to its corresponding virtual network)
+4. configure on either ssh1-sw0 or ssh1-sw1 (or both) an ip address in the same range (to trigger an inject)
+5. execute ./start.sh in order to interconnect the switches via the network simulator ns3
+6. inject via attacker vm
+7. log in from victim to server and observe the attacker
+8. examine dumps

@@ -1,0 +1,188 @@
+#!/bin/bash
+#
+# Deploy crystal installation
+#
+# Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
+#
+# This file is part of crystalproject
+#
+# crystalproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as published by
+# the Free Software Foundation.
+#
+#
+# crystalproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
+
+## GLOBAL VARS
+ROOT_DIR="."
+
+## INCLUDES
+source "${ROOT_DIR}/includes/utils/base.sh" 2>/dev/null
+
+if [[ ${?} -ne 0 ]]; then
+  echo "please enter 'installation' directory and execute ./scripts/deploy" >&2
+  exit 1
+fi
+
+#source "${ROOT_DIR}/includes/utils/user_interaction.sh" 2>/dev/null
+
+# execution
+
+## GENERAL
+# check distribution
+distribution
+
+# check root privileges
+root
+
+# check whether hostname is in hosts file
+check_local_hosts
+
+# update package lists and upgrade packages (version conflict mitigation)
+apt-get update && apt-get upgrade
+
+### OPENNEBULA
+# install opennebula deps
+inst_apt "${ROOT_DIR}/resources/pkglist/deps_opennebula"
+
+# install opennebula
+inst_deb "${ROOT_DIR}/packages/opennebula/ubuntu"
+
+# configure opennebula
+put_files "${ROOT_DIR}/resources/config/opennebula/root"
+
+# setup oneadmin auth
+cp /var/lib/one/.ssh/id_rsa.pub /var/lib/one/.ssh/authorized_keys
+chown -R oneadmin:oneadmin /var/lib/one/.ssh
+chmod 600 /var/lib/one/.ssh/config
+
+# actviate services
+update-rc.d opennebula defaults
+update-rc.d opennebula-sunstone defaults
+
+
+### OPENVSWITCH
+
+# install openvswitch
+inst_apt "${ROOT_DIR}/resources/pkglist/openvswitch"
+
+# get interface to bind openvswitch to
+interfaces=($(get_intf))
+found=0
+if [[ ${#interfaces[@]} -ne 1 ]]; then
+  while [[ ${found} -ne 1 ]]; do
+    #ask interface
+    echo "Available interfaces: ${interfaces[*]}"
+    echo -n "Which interface to use: "
+    read chosen_one
+    for int in ${interfaces[@]}; do
+      if [[ "${int}" == "${chosen_one}" ]]; then
+        found=1;
+      fi
+    done
+    if [[ ${found} -ne 1 ]]; then
+      echo "Interface not found.. try again"
+    fi
+  done
+else
+  echo ${interfaces[0]}
+  chosen_one=${interfaces[0]}
+fi
+
+## INTERFACES config
+
+#apply this to interfaces config
+replace "_INTERFACE_" "${chosen_one}" "${ROOT_DIR}/resources/config/openvswitch/templates/interfaces.append" "${ROOT_DIR}/resources/config/openvswitch/root/etc/network/interfaces.append"
+
+sed "s/iface\ ${chosen_one}/iface\ service-net/g" "/etc/network/interfaces" > "/tmp/interfaces"
+
+#add ovs-bridge options to service-net
+sed -i "/iface\ service-net/a \\ \tovs_type OVSBridge\n\tovs_ports ${chosen_one}" "/tmp/interfaces"
+
+#move additional options to the right interface
+sed -n '1,/iface service-net/d;/auto\|iface/q; { /address\|netmask\|gateway\|dns\|ovs_type\|ovs_ports/!p }' "/tmp/interfaces" >> "/tmp/interfaces.append"
+
+#remove them from the wrong one
+sed -i '/iface\ service-net/,/auto\|iface/ { /iface\ service-net/b; /auto\|iface/b; /address\|netmask\|gateway\|dns\|ovs_type\|ovs_ports/!d }' "/tmp/interfaces"
+
+#append vswitch networks
+cat "${ROOT_DIR}/resources/config/openvswitch/root/etc/network/interfaces.append" >> "/tmp/interfaces"
+
+#add (virt)device specific options
+cat "/tmp/interfaces.append" >> "/tmp/interfaces"
+
+#user review
+if [[ -z ${EDITOR} ]]; then
+        EDITOR="vi"
+fi
+
+${EDITOR} "/tmp/interfaces"
+
+apply=0
+
+while [[ ${apply} -ne 1 ]]; do
+  echo -n "Would you like to apply now?[N/y]: "
+  read -n 1 ans_apply
+  echo
+  ans_apply=$(echo ${ans_apply} |tr '[:upper:]' '[:lower:]')
+  if [[ "${ans_apply}" != "y" ]]; then
+    ${EDITOR} "/tmp/interfaces"
+  else
+    apply=1
+  fi
+done
+
+cp "/tmp/interfaces" "/etc/network/interfaces"
+
+
+
+#put_files "${ROOT_DIR}/resources/config/openvswitch/root"
+# activate services
+update-rc.d openvswitch-switch defaults
+
+## NS3
+inst_apt "${ROOT_DIR}/resources/pkglist/ns3"
+mkdir /opt/ns3
+cp "${ROOT_DIR}/packages/ns3/ns-allinone-3.20.tar.bz2" /opt/ns3
+CURPW=$(pwd)
+cd /opt/ns3 && tar xvf ns-allinone-3.20.tar.bz2 && cd ns-allinone-3.20
+./build.py --enable-examples --enable-tests
+cd ${CURPW}
+
+## finishing part
+
+#reload everything
+service openvswitch-switch restart
+service opennebula-gate restart
+service opennebula restart
+service opennebula-sunstone restart
+
+#bring openvswitch up
+
+#backup ip addr
+backup_addr=$(get_ips ${chosen_one} 1 1)
+ifdown ${chosen_one} & ip address flush dev ${chosen_one} & ifup service-net
+ip addr add ${backup_addr} dev service-net
+ifup external-net
+ifup internal-net
+
+# add this host to the opennebula
+su -c "onehost create $(hostname) -i kvm -v kvm -n openvswitch" oneadmin
+
+# print specs
+echo "you can login under:"
+echo
+
+for ip in $(get_ips); do
+  echo "http://${ip}:9869"
+done
+
+credentials=($(cut -d':' --output-delimiter=' ' -f1,2 /var/lib/one/.one/one_auth))
+
+echo -e "\n\ncredentials:\n\nusername: ${credentials[0]}\npassword: ${credentials[1]}"

@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Print specs of crystal installation
+#
+# Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
+#
+# This file is part of crystalproject
+#
+# crystalproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as published by
+# the Free Software Foundation.
+#
+#
+# crystalproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
+
+## GLOBAL VARS
+ROOT_DIR="."
+
+## INCLUDES
+source "${ROOT_DIR}/includes/utils/base.sh" 2>/dev/null
+
+if [[ ${?} -ne 0 ]]; then
+    echo "please enter 'installation' directory and execute ./scripts/print_specs" >&2
+    exit 1
+fi
+
+# print specs
+echo "you can login under:"
+echo
+
+for ip in $(get_ips); do
+  echo "http://${ip}:9869"
+done
+
+credentials=($(cut -d':' --output-delimiter=' ' -f1,2 /var/lib/one/.one/one_auth))
+echo -e "\n\ncredentials:\n\nusername: ${credentials[0]}\npassword: ${credentials[1]}"

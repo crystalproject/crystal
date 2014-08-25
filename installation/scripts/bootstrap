@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Check needed software for installation is present
+#
+# Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
+#
+# This file is part of crystalproject
+#
+# crystalproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as published by
+# the Free Software Foundation.
+#
+#
+# crystalproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
+
+## GLOBAL VARS
+ROOT_DIR="."
+
+## INCLUDES
+source "${ROOT_DIR}/includes/utils/base.sh" 2>/dev/null
+
+if [[ ${?} -ne 0 ]]; then
+  echo "please enter 'installation' directory and execute ./scripts/deploy" >&2
+  exit 1
+fi
+
+source "${ROOT_DIR}/includes/utils/user_interaction.sh" 2>/dev/null
+
+# check distribution
+distribution

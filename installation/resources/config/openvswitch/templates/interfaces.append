@@ -1,0 +1,17 @@
+
+
+auto service-net internal-net external-net
+allow-ovs service-net
+allow-ovs internal-net
+allow-ovs external-net
+
+allow-service-net _INTERFACE_
+iface internal-net inet manual
+        ovs_type OVSBridge
+
+iface external-net inet manual
+        ovs_type OVSBridge
+
+iface _INTERFACE_ inet manual
+        ovs_bridge service-net
+        ovs_type OVSPort
