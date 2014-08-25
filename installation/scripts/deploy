@@ -117,6 +117,9 @@ cat "${ROOT_DIR}/resources/config/openvswitch/root/etc/network/interfaces.append
 #add (virt)device specific options
 cat "/tmp/interfaces.append" >> "/tmp/interfaces"
 
+#ovs is now managing the underlying interface
+sed -i "/^auto ${chosen_one}$/d" "/tmp/interfaces"
+
 #user review
 if [[ -z ${EDITOR} ]]; then
         EDITOR="vi"
@@ -173,7 +176,7 @@ ifup external-net
 ifup internal-net
 
 # add this host to the opennebula
-su -c "onehost create $(hostname) -i kvm -v kvm -n openvswitch" oneadmin
+su -c "onehost create $(hostname) -i kvm -v kvm -n ovswitch" oneadmin
 
 # print specs
 echo "you can login under:"
