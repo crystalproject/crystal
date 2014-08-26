@@ -170,10 +170,12 @@ service opennebula-sunstone restart
 
 #backup ip addr
 backup_addr=$(get_ips ${chosen_one} 1 1)
-ifdown ${chosen_one} & ip address flush dev ${chosen_one} & ifup service-net
+
+# prepare interface to be taken over by ovs and start it there
+ifdown --allow service-net ${chosen_one} ; ip addr flush dev ${chosen_one} ; ip link set ${chosen_one} down; ifup -a
+
+# to be sure the ip address is set on the interface TODO:still needed?
 ip addr add ${backup_addr} dev service-net
-ifup external-net
-ifup internal-net
 
 # add this host to the opennebula
 su -c "onehost create $(hostname) -i kvm -v kvm -n ovswitch" oneadmin
