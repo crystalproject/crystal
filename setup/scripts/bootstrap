@@ -1,0 +1,119 @@
+#!/bin/bash
+#
+# Check needed software for installation is present
+#
+# Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
+#
+# This file is part of crystalproject
+#
+# crystalproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as published by
+# the Free Software Foundation.
+#
+#
+# crystalproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
+
+## GLOBAL VARS
+BASE_DIR="${BASH_SOURCE[0]%/*/*}"
+
+if [[ "${BASE_DIR}" == *$(basename "${0}")* ]]; then
+  BASE_DIR="${PWD%/*}"
+fi
+
+
+## INCLUDES
+source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
+
+
+if [[ ${?} -ne 0 ]]; then
+  echo "Script inclusion failed. Please verify that all sources are available" >&2
+  exit 1
+fi
+
+source "${BASE_DIR}/includes/utils/user_interaction.sh" 2>/dev/null
+
+
+usage() {
+  echo -e \
+  "Usage: $(basename "${0}") {add|del} HOST\n" \
+  "HOST := NAME TYPE PREFIX USER"
+  exit 1
+}
+
+add() {
+  if [[ ${#} -ne 4 ]]; then
+    usage
+  fi
+
+  local host=$(echo "${1}" |tr '[:upper:]' '[:lower:]')
+  local ip=${3%/*}
+  local nm=${3##*/}
+
+  # host should not exist
+  if [[ ! -f "${BASE_DIR}/config/${host}" ]]; then
+    # type either ctrl or node
+    if [[ "${2}" == "ctrl" || "${2}" == "node" ]]; then
+      if [[ "${nm}" =~ ^[0-9]+$ ]]; then
+        if [[ $(check_ip "${ip}") && "${nm}" -le 32 ]]; then
+          echo -e "TYPE=${2}\nPREFIX=${3}\nUSER=${4}" > "${BASE_DIR}/config/${host}"
+        else
+          echo "ip addr has to be in cidr format" >&2
+          exit 1
+        fi
+      else
+        echo "ip addr has to be in cidr format" >&2
+        exit 1
+      fi
+    else
+      echo "type has to be either ctrl (opennebula control host) or node (additional node)" >&2
+      exit 1
+    fi
+  else
+    echo "host already exists" >&2
+    exit 1
+  fi
+}
+
+del() {
+  if [[ ${#} -lt 1 ]]; then
+    usage
+  fi
+
+  local host=$(echo "${1}" |tr '[:upper:]' '[:lower:]')
+
+  if [[ -f "${BASE_DIR}/config/${host}" ]]; then
+    rm "${BASE_DIR}/config/${host}"
+    echo "removed"
+  else
+    echo "host does not exist" >&2
+    exit 1
+  fi
+}
+
+
+# check distribution
+#distribution
+
+
+case ${1} in
+  add)
+    shift
+    add "${@}"
+    ;;
+
+  del)
+    shift
+    del "${@}"
+    ;;
+
+  *)
+    usage
+    ;;
+
+esac

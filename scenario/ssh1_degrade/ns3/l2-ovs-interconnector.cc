@@ -40,7 +40,13 @@ void terminate (int sig) {
 int 
 main (int argc, char *argv[])
 {
+  std::string tap0Name ("ns3-contap0");
+  std::string tap1Name ("ns3-contap1");
+
   CommandLine cmd;
+  cmd.AddValue("tap0DeviceName", "Tap 0 device name", tap0Name);
+  cmd.AddValue("tap1DeviceName", "Tap 1 device name", tap1Name);
+  
   cmd.Parse (argc, argv);
 
   //
@@ -80,11 +86,11 @@ main (int argc, char *argv[])
 
   TapBridgeHelper tapBridge;
   tapBridge.SetAttribute ("Mode", StringValue ("UseBridge"));
-  tapBridge.SetAttribute ("DeviceName", StringValue ("ns3-contap0"));
+  tapBridge.SetAttribute ("DeviceName", StringValue (tap0Name));
   tapBridge.Install (nodes.Get (0), devices.Get (0));
 
 
-  tapBridge.SetAttribute ("DeviceName", StringValue ("ns3-contap1"));
+  tapBridge.SetAttribute ("DeviceName", StringValue (tap1Name));
   tapBridge.Install (nodes.Get (1), devices.Get (1));
 
   //

@@ -20,10 +20,15 @@
 # along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
 
 ## GLOBAL VARS
-ROOT_DIR="."
+BASE_DIR="${BASH_SOURCE[0]%/*/*}"
+
+if [[ ${BASEDIR} == *$(basename ${0})* ]]; then
+  BASE_DIR="${PWD%/*}"
+fi
+
 
 ## INCLUDES
-source "${ROOT_DIR}/includes/utils/base.sh" 2>/dev/null
+source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
 
 if [[ ${?} -ne 0 ]]; then
     echo "please enter 'installation' directory and execute ./scripts/print_specs" >&2

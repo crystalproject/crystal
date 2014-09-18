@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+# Deploy crystal installation
+#
+# Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
+#
+# This file is part of crystalproject
+#
+# crystalproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as published by
+# the Free Software Foundation.
+#
+#
+# crystalproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
+
+## GLOBAL VARS
+BASE_DIR="${BASH_SOURCE[0]%/*/*}"
+
+
+if [[ "${BASE_DIR}" == *$(basename "${0}")* ]]; then
+  BASE_DIR="${PWD%/*}"
+fi
+
+## INCLUDES
+source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
+source "${BASE_DIR}/includes/utils/hosts.sh" 2>/dev/null
+
+
+if [[ ${?} -ne 0 ]]; then
+  echo "Script inclusion failed. Please verify that all sources are available" >&2
+  exit 1
+fi
+
+#source "${BASE_DIR}/includes/utils/user_interaction.sh" 2>/dev/null
+
+usage() {
+  echo -e \
+  "Usage: $(basename "${0}") HOSTNAME\n"
+  exit 1
+}
+
+#TODO: verify that configuration files are consistent (no multiple assignment of 1 ip addr & only 1 control host per installation)
+
+#parse_config() {
+#  exec 4< "${BASE_DIR}/config/${1}"
+#  while read -u 4 line; do
+#    local setting=$(echo "${line}" | cut -d '=' -f 1)
+#    local value=$(echo "${line}" | cut -d '=' -f 2)
+#    eval "${setting}"=${value}
+#  done 
+#}
+
+copy_install() {
+  scp -r "${BASE_DIR}" "${USER}"@"${PREFIX%/*}":/tmp/
+}
+
+do_remote_install() {
+  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'/tmp/setup/scripts/install ${TYPE} ${host}'"
+}
+
+deploy_host() {
+  local ctrl_host=$(get_ctrl)
+  local ctrl_user=$(grep ^USER "${ctrl_host}" | cut -d '=' -f 2)
+  local ctrl_ip=$(grep ^PREFIX "${ctrl_host}" | cut -d '=' -f 2)
+
+  scp -3 "${ctrl_user}"@"${ctrl_ip%/*}":/var/lib/one/.ssh/id_rsa.pub "${USER}"@"${PREFIX%/*}":/tmp/id_rsa.pub
+
+  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'if [[ \$(id -u) != 0 ]];
+                        then sudo bash -c \"cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys\"
+                else
+                        cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys
+                fi;
+        '"
+
+  ssh -t "${ctrl_user}"@"${ctrl_ip%/*}" bash -c "'
+
+  source /tmp/setup/includes/utils/hosts.sh
+  if [[ \$(id -u) != 0 ]]; then
+    sudo bash -c \"source /tmp/setup/includes/utils/hosts.sh; add_host ${PREFIX%/*} ${host}\"
+    echo \"su -c \"onehost create ${host} -i kvm -v kvm -n ovswitch\" oneadmin\"
+    sudo su -c \"onehost create ${host} -i kvm -v kvm -n ovswitch\" oneadmin
+  else
+    add_host ${PREFIX%/*} ${host}
+    su -c \"onehost create ${host} -i kvm -v kvm -n ovswitch\" oneadmin
+  fi
+  '"
+
+
+
+}
+
+if [[ ${#} -ne 1 ]]; then
+  usage
+fi
+
+declare host=$(echo "${1}" |tr '[:upper:]' '[:lower:]')
+
+if [[ -f "${BASE_DIR}/config/${host}" ]]; then
+  parse_config "${host}"
+  copy_install
+  do_remote_install
+  if [[ ${TYPE} == "node" ]]; then
+    deploy_host
+  fi
+
+else
+  echo "host does not exist. use bootstrap to create it"
+  exit 1
+fi
+

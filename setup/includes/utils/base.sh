@@ -45,6 +45,7 @@ distribution() {
 
 #######################################
 # Check administration privileges
+# TODO: gain root if not
 # Globals:
 #   None
 # Arguments:
@@ -96,7 +97,8 @@ inst_apt() {
 # Globals:
 #   None
 # Arguments:
-#   debfile OR directory containing debfiles
+#  path to one or more debfile(s)
+#  OR directory containing debfiles
 # Returns:
 #  0: on success
 #  >=1: error
@@ -111,7 +113,7 @@ inst_deb() {
   if [[ -d ${1} ]]; then
     dpkg -REi "${1}"
   else
-    dpkg -Ei "${1}"
+    dpkg -Ei "${@}"
   fi
   echo $?
 }
@@ -220,6 +222,8 @@ get_ips() {
   fi
 }
 
+
+
 #######################################
 # Check if local hostname is in /etc/hosts
 #  (and fix it if not)
@@ -237,6 +241,21 @@ check_local_hosts() {
     echo "add it"
     sed -i '/127.0.0.1/ s/$/ '$(hostname)'/' /etc/hosts
   fi
+}
+
+check_ip() {
+  local  ip=${1}
+  local  stat=1
+
+  if [[ ${ip} =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    OIFS=${IFS}
+    IFS='.'
+    ip=(${ip})
+    IFS=${OIFS}
+    [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+    stat=$?
+  fi
+  echo $stat
 }
 
 #######################################
@@ -267,4 +286,14 @@ replace(){
     sed -i 's/'${PATTERN}'/'${REPLACE}'/g' ${INFILE}
   fi
 }
+
+parse_config() {
+  exec 4< "${BASE_DIR}/config/${1}"
+  while read -u 4 line; do
+    local setting=$(echo "${line}" | cut -d '=' -f 1)
+    local value=$(echo "${line}" | cut -d '=' -f 2)
+    eval "${setting}"=${value}
+  done 
+}
+
 

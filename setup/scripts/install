@@ -1,0 +1,315 @@
+#!/bin/bash
+#
+# Deploy crystal installation
+#
+# Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
+#
+# This file is part of crystalproject
+#
+# crystalproject is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 3 as published by
+# the Free Software Foundation.
+#
+#
+# crystalproject is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with crystalproject.  If not, see <http://www.gnu.org/licenses/>.
+
+## GLOBAL VARS
+BASE_DIR="${BASH_SOURCE[0]%/*/*}"
+
+if [[ "${BASE_DIR}" == *$(basename "${0}")* ]]; then
+  BASE_DIR="${PWD%/*}"
+fi
+
+## INCLUDES
+source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
+#source "${BASE_DIR}/includes/utils/hosts.sh" 2>/dev/null
+
+
+if [[ ${?} -ne 0 ]]; then
+  echo "Script inclusion failed. Please verify that all sources are available" >&2
+  exit 1
+fi
+
+#source "${BASE_DIR}/includes/utils/user_interaction.sh" 2>/dev/null
+
+# execution
+
+## GENERAL
+# check distribution
+distribution
+
+# check root privileges
+#root
+(( $EUID != 0 )) &&exec sudo -- "$0" "$@"
+
+install_ctrl() {
+# check whether hostname is in hosts file
+check_local_hosts
+
+# update package lists and upgrade packages (version conflict mitigation)
+apt-get update && apt-get upgrade
+
+### OPENNEBULA
+# install opennebula deps
+inst_apt "${BASE_DIR}/resources/pkglist/deps_opennebula"
+
+# install opennebula
+inst_deb "${BASE_DIR}/packages/opennebula/ubuntu"
+
+# configure opennebula
+put_files "${BASE_DIR}/resources/config/opennebula/root"
+
+# setup oneadmin auth
+cp /var/lib/one/.ssh/id_rsa.pub /var/lib/one/.ssh/authorized_keys
+chown -R oneadmin:oneadmin /var/lib/one/.ssh
+chmod 600 /var/lib/one/.ssh/config
+
+# actviate services
+update-rc.d opennebula defaults
+update-rc.d opennebula-sunstone defaults
+
+#TODO: rubygems n' stuff
+
+#put_files "${BASE_DIR}/resources/config/openvswitch/root"
+# activate services
+update-rc.d openvswitch-switch defaults
+
+## NS3
+inst_apt "${BASE_DIR}/resources/pkglist/ns3"
+
+#TODO created from ./scripts/build
+#put_files "${BASE_DIR}/resources/config/ns3"
+
+#reload everything
+service openvswitch-switch restart
+service opennebula-gate restart
+service opennebula restart
+service opennebula-sunstone restart
+
+
+### OPENVSWITCH
+
+# install openvswitch
+inst_apt "${BASE_DIR}/resources/pkglist/openvswitch"
+
+# get interface to bind openvswitch to
+interfaces=($(get_intf))
+found=0
+if [[ ${#interfaces[@]} -ne 1 ]]; then
+  while [[ ${found} -ne 1 ]]; do
+    #ask interface
+    echo "Available interfaces: ${interfaces[*]}"
+    echo -n "Which interface to use: "
+    read chosen_interface
+    for int in ${interfaces[@]}; do
+      if [[ "${int}" == "${chosen_interface}" ]]; then
+        found=1;
+      fi
+    done
+    if [[ ${found} -ne 1 ]]; then
+      echo "Interface not found.. try again"
+    fi
+  done
+else
+  echo ${interfaces[0]}
+  chosen_interface=${interfaces[0]}
+fi
+
+
+## finishing part
+
+#bring openvswitch up
+
+#backup ip addr
+backup_addr=$(get_ips ${chosen_interface} 1 1)
+
+assemble_interfaces ${chosen_interface} ${backup_addr}
+
+# prepare interface to be taken over by ovs and start it there
+ifdown --allow service-net ${chosen_interface} ; ip addr flush dev ${chosen_interface} ; ip link set ${chosen_interface} down; ifup -a; ip link set ${chosen_interface} up
+
+# to be sure the ip address is set on the interface TODO:still needed?
+ip addr add ${backup_addr} dev service-net
+
+# add this host to the opennebula
+su -c "onehost create $(hostname) -i kvm -v kvm -n ovswitch" oneadmin
+
+# print specs
+echo "you can login under:"
+echo
+
+for ip in $(get_ips); do
+  echo "http://${ip}:9869"
+done
+
+credentials=($(cut -d':' --output-delimiter=' ' -f1,2 /var/lib/one/.one/one_auth))
+
+echo -e "\n\ncredentials:\n\nusername: ${credentials[0]}\npassword: ${credentials[1]}"
+
+}
+
+
+install_node() {
+  # check whether hostname is in hosts file
+  check_local_hosts
+
+  # update package lists and upgrade packages (version conflict mitigation)
+  apt-get update && apt-get upgrade
+
+  ## NS3
+  inst_apt "${BASE_DIR}/resources/pkglist/ns3"
+
+  ### OPENNEBULA
+  # install opennebula deps
+  inst_apt "${BASE_DIR}/resources/pkglist/deps_opennebula_node"
+
+  # install opennebula
+  inst_deb "${BASE_DIR}"/packages/opennebula/ubuntu/opennebula-common_*_all.deb
+  inst_deb "${BASE_DIR}"/packages/opennebula/ubuntu/opennebula-node_*_all.deb
+
+  #TODO created from ./scripts/build
+  put_files "${BASE_DIR}/resources/config/ns3"
+
+  #install openvswitch
+  inst_apt "${BASE_DIR}/resources/pkglist/openvswitch"
+
+
+  # get interface to bind openvswitch to
+  interfaces=($(get_intf))
+  found=0
+  if [[ ${#interfaces[@]} -ne 1 ]]; then
+    while [[ ${found} -ne 1 ]]; do
+      #ask interface
+      echo "Available interfaces: ${interfaces[*]}"
+      echo -n "Which interface to use: "
+      read chosen_interface
+      for int in ${interfaces[@]}; do
+        if [[ "${int}" == "${chosen_interface}" ]]; then
+          found=1;
+        fi
+      done
+      if [[ ${found} -ne 1 ]]; then
+        echo "Interface not found.. try again"
+      fi
+    done
+  else
+    echo ${interfaces[0]}
+    chosen_interface=${interfaces[0]}
+  fi
+
+  backup_addr=$(get_ips ${chosen_interface} 1 1)
+
+  assemble_interfaces ${chosen_interface} ${backup_addr}
+
+   # prepare interface to be taken over by ovs and start it there
+  ifdown --allow service-net ${chosen_interface} ; ip addr flush dev ${chosen_interface} ; ip link set ${chosen_interface} down; ifup -a; ip link set ${chosen_interface} up
+
+  # to be sure the ip address is set on the interface TODO:still needed?
+  ip addr add ${backup_addr} dev service-net
+
+}
+
+## INTERFACES config
+
+assemble_interfaces() {
+
+  chosen_interface="${1}"
+
+  backup_addr="${2}"
+
+  #apply this to interfaces config
+  replace "_INTERFACE_" "${chosen_interface}" "${BASE_DIR}/resources/config/openvswitch/templates/interfaces.append" "${BASE_DIR}/resources/config/openvswitch/root/etc/network/interfaces.append"
+
+  parse_config ${HOST}
+
+
+  sed "s/iface\ ${chosen_interface}/iface\ service-net/g" "/etc/network/interfaces" > "/tmp/interfaces"
+  
+  #add ovs-bridge options to service-net
+  sed -i "/iface\ service-net/a \\ \tovs_type OVSBridge\n\tovs_ports ${chosen_interface}" "/tmp/interfaces"
+  
+  #move additional options to the right interface
+  sed -n '1,/iface service-net/d;/auto\|iface/q; { /address\|netmask\|gateway\|dns\|ovs_type\|ovs_ports/!p }' "/tmp/interfaces" >> "/tmp/interfaces.append"
+  
+  #remove them from the wrong one
+  sed -i '/iface\ service-net/,/auto\|iface/ { /iface\ service-net/b; /auto\|iface/b; /address\|netmask\|gateway\|dns\|ovs_type\|ovs_ports/!d }' "/tmp/interfaces"
+  
+  #append vswitch networks
+  cat "${BASE_DIR}/resources/config/openvswitch/root/etc/network/interfaces.append" >> "/tmp/interfaces"
+  
+  #add (virt)device specific options
+  cat "/tmp/interfaces.append" >> "/tmp/interfaces"
+
+  # multipoint gre
+  # TODO: global config option which sets the multicast address
+
+  if [[ -n "${MPGREPREFIX}" && "${MPGREPREFIX}" != "none" ]]; then
+    echo -e "auto mpgre\n" \
+      "iface mpgre inet static\n" \
+      "  address ${MPGREPREFIX%/*}\n" \
+      "  netmask ${MPGREPREFIX##*/}\n" \
+      "  pre-up ip tunnel add mpgre mode gre remote 224.133.7.1 local ${backup_addr%/*}\n" \
+      "  up ip link set mpgre multicast on\n" \
+      "  post-down ip link del mpgre" >> "/tmp/interfaces"
+  fi  
+ 
+  #ovs is now managing the underlying interface
+  sed -i "/^auto ${chosen_interface}$/d" "/tmp/interfaces"
+  
+  #user review
+  if [[ -z ${EDITOR} ]]; then
+          EDITOR="vi"
+  fi
+  
+  ${EDITOR} "/tmp/interfaces"
+  
+  apply=0
+  
+  while [[ ${apply} -ne 1 ]]; do
+    echo -n "Would you like to apply now?[N/y]: "
+    read -n 1 ans_apply
+    echo
+    ans_apply=$(echo ${ans_apply} |tr '[:upper:]' '[:lower:]')
+    if [[ "${ans_apply}" != "y" ]]; then
+      ${EDITOR} "/tmp/interfaces"
+    else
+      apply=1
+    fi
+  done
+  
+  cp "/tmp/interfaces" "/etc/network/interfaces"
+}
+
+usage() {
+  echo -e \
+  "Usage: $(basename "${0}") TYPE HOSTNAME\n"
+  exit 1
+}
+
+if [[ -n ${2} ]]; then
+  HOST=${2}
+else
+  usage
+fi
+
+case ${1} in
+  ctrl)
+    install_ctrl
+    ;;
+
+  node)
+    install_node
+    ;;
+
+  *)
+    usage
+    ;;
+
+esac
+

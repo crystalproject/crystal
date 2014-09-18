@@ -15,3 +15,4 @@ iface external-net inet manual
 iface _INTERFACE_ inet manual
         ovs_bridge service-net
         ovs_type OVSPort
+

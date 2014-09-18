@@ -1,0 +1,17 @@
+1. use bootstrap script to create your configuration (one per host)
+current options:
+- TYPE: ctrl or node (ctrl: install full opennebula, node: opennebula client)
+- PREFIX: cidr of the current ip address of the host
+- USER: user to login with (ssh)
+- MPGREPREFIX: multipoint gre cidr address used for node intercommunication
+
+2. execute build to build ns-3
+
+3. execute deploy HOST (execute the ctrl host first)
+
+
+General notes:
+- This is currently under development and has to be considered highly experimental
+- It is currently not so practical since you have to enter several passwords in order to put everything in place
+- It currently lacks of several consistency checks
+- It needs further testing

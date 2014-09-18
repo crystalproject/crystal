@@ -1,0 +1,6 @@
+adduser
+libvirt-bin
+qemu-kvm
+ruby
+vlan
+openssh-client
