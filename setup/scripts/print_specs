@@ -22,16 +22,17 @@
 ## GLOBAL VARS
 BASE_DIR="${BASH_SOURCE[0]%/*/*}"
 
-if [[ ${BASEDIR} == *$(basename ${0})* ]]; then
+if [[ ${BASE_DIR} == *$(basename "${0}")* ]]; then
   BASE_DIR="${PWD%/*}"
 fi
 
 
+
 ## INCLUDES
-source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
+source "${BASE_DIR}/includes/network_operation.sh" 2>/dev/null
 
 if [[ ${?} -ne 0 ]]; then
-    echo "please enter 'installation' directory and execute ./scripts/print_specs" >&2
+    echo "Script inclusion failed. Please verify that all sources are available" >&2
     exit 1
 fi
 

@@ -27,6 +27,3 @@ ovs-vsctl add-port ssh1-sw1 ns3-contap1
 ovs-vsctl add-port ssh1-sw1 rgre -- set interface rgre type=gre options:remote_ip=172.16.0.1
 
 ip addr add 10.1.1.30 peer 10.1.1.20 dev ssh1-sw1
-
-#echo "before you start the scenario, please attach the server and attacker vm to ssh1-sw0 and victim to ssh1-sw1 via the sunstone interface, start them and assign ip addresses to get ready"
-#echo "In addition, please set an ip address on at least one of the two mentioned switches in the same range as the vms in order to interact with the scenario (eg. start an inject)"

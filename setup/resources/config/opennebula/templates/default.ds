@@ -1,0 +1,7 @@
+BASE_PATH="/var/lib/one//datastores/"
+CLONE_TARGET="SYSTEM"
+DISK_TYPE="FILE"
+DS_MAD="fs"
+LN_TARGET="SYSTEM"
+TM_MAD="ssh"
+TYPE="IMAGE_DS"

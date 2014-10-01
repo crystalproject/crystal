@@ -28,85 +28,90 @@ if [[ "${BASE_DIR}" == *$(basename "${0}")* ]]; then
 fi
 
 ## INCLUDES
-source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
-source "${BASE_DIR}/includes/utils/hosts.sh" 2>/dev/null
+source "${BASE_DIR}/includes/base.sh" 2>/dev/null
+source "${BASE_DIR}/includes/configuration.sh" 2>/dev/null
+source "${BASE_DIR}/includes/hosts.sh" 2>/dev/null
 
 
-if [[ ${?} -ne 0 ]]; then
+if [[ "${?}" -ne 0 ]]; then
   echo "Script inclusion failed. Please verify that all sources are available" >&2
   exit 1
 fi
 
-#source "${BASE_DIR}/includes/utils/user_interaction.sh" 2>/dev/null
-
+## LOCAL FUNCS
 usage() {
   echo -e \
   "Usage: $(basename "${0}") HOSTNAME\n"
   exit 1
 }
 
-#TODO: verify that configuration files are consistent (no multiple assignment of 1 ip addr & only 1 control host per installation)
-
-#parse_config() {
-#  exec 4< "${BASE_DIR}/config/${1}"
-#  while read -u 4 line; do
-#    local setting=$(echo "${line}" | cut -d '=' -f 1)
-#    local value=$(echo "${line}" | cut -d '=' -f 2)
-#    eval "${setting}"=${value}
-#  done 
-#}
 
 copy_install() {
-  scp -r "${BASE_DIR}" "${USER}"@"${PREFIX%/*}":/tmp/
+  scp -r "${BASE_DIR}"/* "${USER}"@"${PREFIX%/*}":/tmp/
 }
 
 do_remote_install() {
-  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'/tmp/setup/scripts/install ${TYPE} ${host}'"
+  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'/tmp/scripts/install ${TYPE} ${host}'"
 }
 
-deploy_host() {
-  local ctrl_host=$(get_ctrl)
+remote_onehost_add() {
+  if [[ -z "${1}" ]]; then
+    echo "missing parameter" >&2
+    return 1
+  fi
+
+  local ctrl_host="${1}"
+
   local ctrl_user=$(grep ^USER "${ctrl_host}" | cut -d '=' -f 2)
   local ctrl_ip=$(grep ^PREFIX "${ctrl_host}" | cut -d '=' -f 2)
 
-  scp -3 "${ctrl_user}"@"${ctrl_ip%/*}":/var/lib/one/.ssh/id_rsa.pub "${USER}"@"${PREFIX%/*}":/tmp/id_rsa.pub
-
-  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'if [[ \$(id -u) != 0 ]];
-                        then sudo bash -c \"cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys\"
-                else
-                        cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys
-                fi;
-        '"
-
   ssh -t "${ctrl_user}"@"${ctrl_ip%/*}" bash -c "'
 
-  source /tmp/setup/includes/utils/hosts.sh
   if [[ \$(id -u) != 0 ]]; then
-    sudo bash -c \"source /tmp/setup/includes/utils/hosts.sh; add_host ${PREFIX%/*} ${host}\"
-    echo \"su -c \"onehost create ${host} -i kvm -v kvm -n ovswitch\" oneadmin\"
     sudo su -c \"onehost create ${host} -i kvm -v kvm -n ovswitch\" oneadmin
   else
-    add_host ${PREFIX%/*} ${host}
     su -c \"onehost create ${host} -i kvm -v kvm -n ovswitch\" oneadmin
   fi
   '"
-
-
+  if [[ ${?} -ne 0 ]]; then
+    return 1
+  else
+    return 0
+  fi
 
 }
 
-if [[ ${#} -ne 1 ]]; then
+
+## EXEC
+config_check
+
+if [[ ${?} -ne 0 ]]; then
+  exit 1
+fi
+
+if [[ "${#}" -ne 1 ]]; then
   usage
 fi
 
 declare host=$(echo "${1}" |tr '[:upper:]' '[:lower:]')
 
 if [[ -f "${BASE_DIR}/config/${host}" ]]; then
-  parse_config "${host}"
+  config_parse "${host}"
   copy_install
   do_remote_install
-  if [[ ${TYPE} == "node" ]]; then
-    deploy_host
+  if [[ "${TYPE}" == "node" ]]; then
+    ctrl_host=$(get_ctrl)
+
+    remote_add_hosts "${ctrl_host}"
+    if [[ ${?} -ne 0 ]]; then
+      echo "an error occured on adding entry to hosts file. please check that manually" >&2
+    fi
+
+    remote_onehost_add "${ctrl_host}"
+    if [[ ${?} -ne 0 ]]; then
+      echo "an error occured on adding host to opennebula. please check that manually" >&2
+    fi
+
   fi
 
 else

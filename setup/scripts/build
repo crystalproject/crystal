@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Build and deposit inside /build
+# Build and deposit
 #
 # Copyright (C) 2014 RUAG Defence, Patrick Haeusermann <patrick.haeusermann@ruag.com>
 #
@@ -21,16 +21,28 @@
 
 #TODO put in right directory
 
-## GLOBAL VARS
+## GLOBALS
 BASE_DIR=${BASH_SOURCE[0]%/*/*}
 
 if [[ "${BASE_DIR}" == *$(basename "${0}")* ]]; then
   BASE_DIR="${PWD%/*}"
 fi
 
-source "${BASE_DIR}/includes/utils/base.sh" 2>/dev/null
+## INCLUDES
+source "${BASE_DIR}/includes/base.sh" 2>/dev/null
+source "${BASE_DIR}/includes/installation.sh" 2>/dev/null
 
-inst_apt "${BASE_DIR}/resources/pkglist/ns3"
+
+if [[ "${?}" -ne 0 ]]; then
+  echo "Library inclusion failed. Please verify that all sources are available" >&2
+  exit 1
+fi
+
+check_deps_deb "${BASE_DIR}"/resources/pkglist/ns3
+
+if [[ "${?}" -ne 0 ]]; then
+  exit 1
+fi
 
 mkdir -p "${BASE_DIR}"/resources/config/ns3/opt/ns3
 CURPW=$(pwd)

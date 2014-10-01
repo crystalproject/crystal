@@ -25,8 +25,10 @@ ovs-vsctl set mirror mirror0 select_all=1
 
 # add switch interconnection taps
 ip tuntap add dev ns3-contap0 mode tap
+ip tuntap add dev helpertap mode tap
 
 ip link set ns3-contap0 up
+ip link set helpertap up
 
 ovs-vsctl add-port ssh1-sw0 ns3-contap0
 
@@ -41,6 +43,3 @@ vnets=$(su -c "onevnet create ssh1-switch0.net" oneadmin | cut -d ' ' -f 2)
 vnets=$(echo "$vnets $(su -c "onevnet create ssh1-switch1.net" oneadmin | cut -d ' ' -f 2)")
 
 export vnets
-
-#echo "before you start the scenario, please attach the server and attacker vm to ssh1-sw0 and victim to ssh1-sw1 via the sunstone interface, start them and assign ip addresses to get ready"
-#echo "In addition, please set an ip address on at least one of the two mentioned switches in the same range as the vms in order to interact with the scenario (eg. start an inject)"

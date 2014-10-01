@@ -12,7 +12,7 @@ imagemagick
 libgoocanvas-dev
 libgsl0-dev
 libgsl0ldbl
-libgtk2.0-0
+libgtk2.0-common
 libgtk2.0-dev
 libsqlite3-dev
 libxml2
