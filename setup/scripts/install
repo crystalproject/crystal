@@ -242,6 +242,48 @@ assemble_interfaces() {
   cp "/tmp/interfaces" "/etc/network/interfaces"
 }
 
+install_oplayer() {
+  inst_apt "${BASE_DIR}/resources/pkglist/oplayer"
+
+  dpkg-reconfigure -plow slapd
+
+  # cfg ldap
+  local SUFFIX="$(grep "^olcSuffix:" '/etc/ldap/slapd.d/cn=config/olcDatabase={1}hdb.ldif' | cut -d':' -f 2)"
+
+  mkdir /tmp/structure/
+
+  find "${BASE_DIR}/resources/config/oplayer/templates/structure" -type f -print0 | while read -d $'\0' file; do
+    replace "__SUFFIX__" "${SUFFIX}" "${file}" "/tmp/structure/${file##*/}"
+  done
+
+  find "/tmp/structure" -type f -print0 | sort -z | while read -d $'\0' file; do
+    ldapadd -c -Y EXTERNAL -H ldapi:/// -f "${file}"
+  done
+
+  # cfg dovecot
+  replace "__SUFFIX__" "${SUFFIX}" "${BASE_DIR}/resources/config/oplayer/templates/dovecot/dovecot-ldap.conf.ext" "${BASE_DIR}/resources/config/oplayer/root/etc/dovecot/dovecot-ldap.conf.ext"
+
+  # cfg postfix
+  replace "__SUFFIX__" "${SUFFIX}" "${BASE_DIR}/resources/config/oplayer/templates/postfix/ldap-aliases.cf" "${BASE_DIR}/resources/config/oplayer/root/etc/postfix/ldap-aliases.cf"
+
+
+  put_root "${BASE_DIR}/resources/config/oplayer/root"
+
+
+  local netaddr=$(ipcalc -b -n ${PREFIX} | grep Network: | tr -s ' '| cut -d ' ' -f 2)
+
+  postconf -e "inet_interfaces=localhost ${PREFIX%/*}"
+  postconf -e "mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128 ${netaddr}"
+
+  groupadd -g 5000 vmail
+  useradd -m -u 5000 -g 5000 -s /bin/bash vmail
+
+  service slapd restart
+  service dovecot restart
+  service postfix restart
+  service rsyslog restart
+}
+
 usage() {
   echo -e \
   "Usage: $(basename "${0}") TYPE HOSTNAME\n"
@@ -262,6 +304,9 @@ case ${1} in
 
   node)
     install_node
+    ;;
+  oplayer)
+    install_oplayer
     ;;
 
   *)

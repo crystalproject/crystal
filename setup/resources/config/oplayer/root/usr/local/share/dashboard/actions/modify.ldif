@@ -1,0 +1,4 @@
+dn: cn=dashboard,ou=groups,__SUFFIX__
+changetype: modify
+replace: member
+member: cn=__ID__ __NAME__,ou=machines,__SUFFIX__

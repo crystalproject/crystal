@@ -1,0 +1,12 @@
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated,reject_unauth_destination
+
+virtual_transport = dovecot
+virtual_mailbox_domains = ctr.ch
+dovecot_destination_recipient_limit = 1
+
+virtual_alias_maps = ldap:/etc/postfix/ldap-aliases.cf
+virtual_mailbox_maps = ldap:/etc/postfix/ldap-aliases.cf
+smtpd_sender_login_maps = ldap:/etc/postfix/ldap-aliases.cf

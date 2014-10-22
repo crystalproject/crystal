@@ -112,6 +112,8 @@ if [[ -f "${BASE_DIR}/config/${host}" ]]; then
       echo "an error occured on adding host to opennebula. please check that manually" >&2
     fi
 
+  #elif [[ ${TYPE} == "ctrl" ]]; then
+
   fi
 
 else

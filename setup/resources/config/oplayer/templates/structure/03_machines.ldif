@@ -1,0 +1,3 @@
+dn: ou=machines,__SUFFIX__
+objectClass: organizationalUnit
+ou: machines

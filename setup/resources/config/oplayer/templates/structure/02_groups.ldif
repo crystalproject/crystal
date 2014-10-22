@@ -1,0 +1,3 @@
+dn: ou=groups,__SUFFIX__
+objectClass: organizationalUnit
+ou: groups

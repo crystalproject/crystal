@@ -1,0 +1,5 @@
+server_host = localhost
+search_base = __SUFFIX__
+
+query_filter = (&(objectclass=person)(mail=%s))
+result_attribute = mail

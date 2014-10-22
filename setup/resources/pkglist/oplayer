@@ -1,0 +1,13 @@
+slapd
+ipcalc
+postfix
+postfix-ldap
+dovecot-core
+dovecot-imapd
+dovecot-ldap
+mailutils-common
+libmailutils4
+mailutils
+ldap-utils
+ldapscripts
+pwgen

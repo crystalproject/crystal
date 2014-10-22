@@ -9,6 +9,8 @@ current options:
 
 3. execute deploy HOST (execute the ctrl host first)
 
+4. (optional) execute install oplayer HOST to install the operational layer services. Note that you should use the hdb backend for the slapd service
+
 
 General notes:
 - This is currently under development and has to be considered highly experimental

@@ -1,0 +1,6 @@
+dn: cn=dovecot,__SUFFIX__
+changetype: add
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: dovecot
+userPassword: asdfasdf

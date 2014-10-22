@@ -1,0 +1,11 @@
+dn: cn=__ID__ __NAME__, ou=machines,__SUFFIX__
+changetype: add
+cn: __ID__ __NAME__
+gn: __ID__
+sn: __NAME__
+objectClass: person
+mail: __EMAIL__
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+ou: machines
+userPassword: __PASSWORD__
