@@ -9,15 +9,21 @@ do
   *Login:*)
     email=$(echo "${line}" | sed -e 's/.*user=<\(.*\)>,.*/\1/')
     name=$(${BINDIR}/mgmt_dashboard.sh getbyemail ${email})
-    ${BINDIR}/mgmt_dashboard.sh add ${name}
-    echo "User ${email} logged in"
+    if [[ -n ${name} ]]; then
+      ${BINDIR}/mgmt_dashboard.sh add ${name}
+      echo "User ${email} logged in"
+    fi
+    name=""
   ;;
   *"Logged out"* | *"Connection closed"*)
     #user=$(echo "${line}" | sed 's/.*imap\(.*\).*/\1/g')
     email=$(echo "${line}" | sed -e 's/.*imap(\(.*\)):\ .*/\1/')
-    name=$(${BINDIR}/mgmt_dashboard.sh getbyemail ${email})
-    ${BINDIR}/mgmt_dashboard.sh del ${name}
-    echo "User ${email} logged out"
+    if [[ -n ${name} ]]; then
+      name=$(${BINDIR}/mgmt_dashboard.sh getbyemail ${email})
+      ${BINDIR}/mgmt_dashboard.sh del ${name}
+      echo "User ${email} logged out"
+    fi
+    name=""
 
   ;;
 

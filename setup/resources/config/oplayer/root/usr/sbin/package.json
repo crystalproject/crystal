@@ -1,0 +1,15 @@
+{
+  "name": "relay",
+  "version": "0.0.1",
+  "description": "IMAP mail relay for freeboard",
+  "author": "Patrick Haeusermann <patrick.haeusermann@ruag.com>",
+  "keywords": [
+    "IMAP",
+    "relay"
+  ],
+  "license": "GPLv3",
+  "main": "imap4Node.js",
+  "dependencies": {
+    "imap": "0.8.14"
+  }
+}

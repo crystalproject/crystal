@@ -1,0 +1,3 @@
+dn: ou=people,__SUFFIX__
+objectClass: organizationalUnit
+ou: people

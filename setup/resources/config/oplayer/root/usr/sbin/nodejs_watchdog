@@ -1,0 +1,23 @@
+#! /bin/sh
+APP_PATH=$1
+LOG_FILE=$2
+PID_FILE=$3
+PORT=$4
+NODE_ENV=$5
+NODE_CONFIG_DIR=$6
+EXEC_PATH=$(which nodejs)
+
+
+#PID=0
+while [ 1 ]; do
+#  if [ "$PID" == "0" || ! $(ps $PID) ] 
+#  then
+    $EXEC_PATH $APP_PATH 1>"$LOG_FILE" 2>&1 &
+    PID=$!
+    trap 'kill $PID; exit 255' TERM
+    wait $PID
+#  else
+#    sleep 1
+#  fi
+done
+

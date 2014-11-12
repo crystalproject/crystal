@@ -1,0 +1,9 @@
+dn: cn=monitor,__SUFFIX__
+changetype: add
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+mail: monitor
+givenName: monitor
+userPassword: asdfasdf
+sn: monitor
+cn: monitor

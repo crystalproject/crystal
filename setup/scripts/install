@@ -104,10 +104,18 @@ install_ctrl() {
 # install openvswitch
   inst_apt "${BASE_DIR}/resources/pkglist/openvswitch"
 
+### CTR DEPS
+
+  inst_apt "${BASE_DIR}/resources/pkglist/ctr"
+
+  put_root "${BASE_DIR}/resources/config/ctr/root"
+
 # get interface to bind openvswitch to
   local interfaces=($(get_intf))
 
   local chosen_interface=$(query_service_interface "${interfaces[@]}")
+
+
 
 ## finishing part
 
@@ -174,6 +182,11 @@ install_node() {
   #install openvswitch
   inst_apt "${BASE_DIR}/resources/pkglist/openvswitch"
 
+### CTR DEPS
+
+  inst_apt "${BASE_DIR}/resources/pkglist/ctr"
+
+  put_root "${BASE_DIR}/resources/config/ctr/root"
 
   # get interface to bind openvswitch to
   local interfaces=($(get_intf))

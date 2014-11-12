@@ -39,7 +39,9 @@ fi
 # print specs
 echo "you can login under:"
 echo
+echo "http://$(hostname -i):9869"
 
+echo "all available connections are the following"
 for ip in $(get_ips); do
   echo "http://${ip}:9869"
 done

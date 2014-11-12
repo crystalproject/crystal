@@ -118,13 +118,21 @@ check_deps_deb() {
     local pkgs=$(<"${file}")
     IFS="${OLDFS}"
 
+    local dep_stat=0
+
     for pkg in ${pkgs}; do
       dpkg --get-selections | grep "^${pkg}" | grep -q "install$" >/dev/null
       if [[ "${?}" -eq 1 ]]; then
-        echo "dependencies missing. please install ${pkg}"
-        return 1
+        if [ ${dep_stat} -eq 0 ]; then
+          dep_stat=1
+          echo -ne "dependencies missing. please install\n\n${pkg}"
+        else
+          echo -n " ${pkg}"
+        fi
       fi
     done
+    echo
+    return ${dep_stat}
 
   else
       dpkg --get-selections | grep "^${pkg}" | grep -q "install$" >/dev/null

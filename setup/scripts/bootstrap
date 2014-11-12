@@ -48,6 +48,10 @@ usage() {
 # check distribution
 distribution
 
+if [[ ! -d "${BASE_DIR}/config" ]]; then
+  mkdir "${BASE_DIR}/config"
+fi
+
 
 case ${1} in
   add)

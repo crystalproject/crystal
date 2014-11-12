@@ -1,2 +1,2 @@
-dn: cn=__ID__ __NAME__, ou=machines,__SUFFIX__
+dn: cn=__ID__ __NAME__, ou=__OU__,__SUFFIX__
 changetype: delete

@@ -66,7 +66,6 @@ put_root() {
   done
 }
 
-
 #######################################
 # add publickey from ctrl-host to the node
 # Globals:
@@ -87,12 +86,56 @@ distribute_pubkey() {
   local ctrl_user=$(grep ^USER "${ctrl_host}" | cut -d '=' -f 2)
   local ctrl_ip=$(grep ^PREFIX "${ctrl_host}" | cut -d '=' -f 2)
 
-  scp -3 "${ctrl_user}"@"${ctrl_ip%/*}":/var/lib/one/.ssh/id_rsa.pub "${USER}"@"${PREFIX%/*}":/tmp/id_rsa.pub
+  scp -o StrictHostKeyChecking=no "${ctrl_user}"@"${ctrl_ip%/*}":/var/lib/one/.ssh/id_rsa.pub /tmp/id_rsa.pub
 
-  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'if [[ \$(id -u) != 0 ]];
-                        then sudo bash -c \"cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys\"
+  if [[ $(id -u) != 0 ]];
+    then sudo bash -c "cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys"
+  else
+    cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys
+  fi;
+
+  if [[ ${?} -ne 0 ]]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+
+#######################################
+# pubkey distribution via triangular
+# communication
+# Globals:
+#   None
+# Arguments:
+#   ctrl_host: hostname of ctrl host
+#   source_key: path to source
+#   auth_key: path to authorized_keys file
+# Returns:
+#  0: on success
+#  1: error
+#######################################
+
+distribute_pubkey_3() {
+  if [[ ${#} -lt 3 ]]; then
+    return 1
+  fi
+
+  local ctrl_host="${1}"
+  local ctrl_user=$(grep ^USER "${ctrl_host}" | cut -d '=' -f 2)
+  local ctrl_ip=$(grep ^PREFIX "${ctrl_host}" | cut -d '=' -f 2)
+
+  local source_key="${2}"
+  local auth_key="${3}"
+
+  scp -3 -o StrictHostKeyChecking=no "${ctrl_user}"@"${ctrl_ip%/*}":"${source_key}" "${USER}"@"${PREFIX%/*}":/tmp/id_rsa.pub
+
+  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'if [[ \$(id -u) != 0 ]]; then
+                        sudo bash -c \" mkdir -p -m 700 ${auth_key%/*};
+                        cat /tmp/id_rsa.pub >> ${auth_key}\"
                 else
-                        cat /tmp/id_rsa.pub >> /var/lib/one/.ssh/authorized_keys
+                        mkdir -p -m 700 ${auth_key%/*};
+                        cat /tmp/id_rsa.pub >> ${auth_key}
                 fi;
         '"
 

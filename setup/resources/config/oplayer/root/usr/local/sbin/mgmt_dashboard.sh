@@ -103,17 +103,19 @@ delete_entry () {
 }
 
 add_contact () {
-  local timestamp file email password
+  local timestamp file email password ou
   timestamp=$(date +%s%N)
   email="${3}"
+  ou="${4}"
 
-  if [[ -n "${4}" ]]; then
-    password="${4}"
+  if [[ -n "${5}" ]]; then
+    password="${5}"
   else
     password="default"
   fi
 
-  sed "s/__SUFFIX__/${SUFFIX}/g;s/__ID__/${ID}/g;s/__NAME__/${NAME}/g;s/__EMAIL__/${email}/g;s/__PASSWORD__/${password}/g" "${RESDIR}/contact.add.ldif" > "/tmp/${timestamp}_cadd.ldif"
+
+  sed "s/__SUFFIX__/${SUFFIX}/g;s/__ID__/${ID}/g;s/__NAME__/${NAME}/g;s/__EMAIL__/${email}/g;s/__PASSWORD__/${password}/g;s/__OU__/${ou}/g" "${RESDIR}/contact.add.ldif" > "/tmp/${timestamp}_cadd.ldif"
   file="/tmp/${timestamp}_cadd.ldif"
 
   "${LD_MODIFY}" -D "${LOGIN}" -w "${PASS}" -f "${file}"
@@ -126,7 +128,7 @@ del_contact() {
   local timestamp mfile
   timestamp=$(date +%s%N)
 
-  sed "s/__SUFFIX__/${SUFFIX}/g;s/__ID__/${ID}/g;s/__NAME__/${NAME}/g" "${RESDIR}/contact.delete.ldif" > "/tmp/${timestamp}_cdel.ldif"
+  sed "s/__SUFFIX__/${SUFFIX}/g;s/__ID__/${ID}/g;s/__NAME__/${NAME}/g;s/__OU__/${ou}/g" "${RESDIR}/contact.delete.ldif" > "/tmp/${timestamp}_cdel.ldif"
   file="/tmp/${timestamp}_cdel.ldif"
 
   "${LD_MODIFY}" -D "${LOGIN}" -w "${PASS}" -f "${file}"
@@ -137,8 +139,9 @@ del_contact() {
 
 usage() {
   echo -e \
-  "Usage: $(basename "${0}") {add|del} NAME || {cadd|cdel} NAME email [password]\n" \
-  "NAME : Identifier Name"
+  "Usage: $(basename "${0}") {add|del} NAME || {cadd|cdel} NAME email ou [password]\n" \
+  "NAME : Identifier Name" \
+  "ou   : people or machines"
   exit 1
 }
 
@@ -177,7 +180,7 @@ case ${1} in
 
   cadd)
     shift
-    if [[ ${#} -lt 3 ]]; then
+    if [[ ${#} -lt 4 ]]; then
       usage
     fi
 
@@ -188,7 +191,7 @@ case ${1} in
 
   cdel)
     shift
-    if [[ ${#} -ne 2 ]]; then
+    if [[ ${#} -ne 3 ]]; then
       usage
     fi
 

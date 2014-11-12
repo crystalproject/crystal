@@ -31,6 +31,7 @@ fi
 source "${BASE_DIR}/includes/base.sh" 2>/dev/null
 source "${BASE_DIR}/includes/configuration.sh" 2>/dev/null
 source "${BASE_DIR}/includes/hosts.sh" 2>/dev/null
+source "${BASE_DIR}/includes/file_operation.sh" 2>/dev/null
 
 
 if [[ "${?}" -ne 0 ]]; then
@@ -45,13 +46,46 @@ usage() {
   exit 1
 }
 
+copy_root_rsa() {
+  #scp -o StrictHostKeyChecking=no "${USER}"@"${PREFIX%/*}":/tmp/
+  local ctrl_host=$(get_ctrl)
+  distribute_pubkey_3 "${ctrl_host}" "/tmp/id_rsa.pub" "/root/.ssh/authorized_keys"
+
+  if [[ ${?} -ne 0 ]]; then
+    echo "could not copy pubkey for root from ctrl host ${ctrl_host} to ${host}. please check that manually"
+  fi
+}
+
+gen_root_rsa() {
+  echo "if necessary generating root pubkey now"
+  ssh -o StrictHostKeyChecking=no -t "${USER}"@"${PREFIX%/*}" bash -c "'
+    if [[ \$(id -u) != 0 ]]; then
+      sudo bash -c \"if [[ -f /root.ssh/id_rsa.pub ]]; then
+        cp /root/.ssh/id_rsa.pub /tmp/
+      else
+        ssh-keygen -t rsa -b 4096
+        cp /root/.ssh/id_rsa.pub /tmp
+      fi
+      \"
+    else
+      if [[ -f /root.ssh/id_rsa.pub ]]; then
+        cp /root/.ssh/id_rsa.pub /tmp/
+      else
+        ssh-keygen -t rsa -b 4096
+        cp /root/.ssh/id_rsa.pub /tmp
+      fi
+    fi
+  '"
+  
+#  ssh -t -o StrictHostKeyChecking=no "${USER}"@"${PREFIX%/*}" bash -c "'sudo ssh-keygen -t rsa -b 4096; sudo cp /root/.ssh/id_rsa.pub /tmp/'"
+}
 
 copy_install() {
-  scp -r "${BASE_DIR}"/* "${USER}"@"${PREFIX%/*}":/tmp/
+  scp -r -o StrictHostKeyChecking=no "${BASE_DIR}"/* "${USER}"@"${PREFIX%/*}":/tmp/
 }
 
 do_remote_install() {
-  ssh -t "${USER}"@"${PREFIX%/*}" bash -c "'/tmp/scripts/install ${TYPE} ${host}'"
+  ssh -t -o StrictHostKeyChecking=no "${USER}"@"${PREFIX%/*}" bash -c "'/tmp/scripts/install ${TYPE} ${host}'"
 }
 
 remote_onehost_add() {
@@ -97,6 +131,13 @@ declare host=$(echo "${1}" |tr '[:upper:]' '[:lower:]')
 
 if [[ -f "${BASE_DIR}/config/${host}" ]]; then
   config_parse "${host}"
+
+  if [[ "${TYPE}" == "ctrl" ]]; then
+    gen_root_rsa
+  elif [[ "${TYPE}" == "node" ]]; then
+    copy_root_rsa
+  fi
+
   copy_install
   do_remote_install
   if [[ "${TYPE}" == "node" ]]; then

@@ -63,7 +63,7 @@ config_check() {
 
   if [[ "${num_ctrl}" -ne 1 ]]; then
     echo "you have to declare exactly one control host" >&2
-    return 0
+    return 1
   fi
 
   for file in "${files[@]}"; do

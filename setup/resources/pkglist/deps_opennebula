@@ -211,3 +211,4 @@ thin
 vlan
 websockify
 wget
+lvm2

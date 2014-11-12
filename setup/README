@@ -1,19 +1,39 @@
-1. use bootstrap script to create your configuration (one per host)
-current options:
-- TYPE: ctrl or node (ctrl: install full opennebula, node: opennebula client)
-- PREFIX: cidr of the current ip address of the host
-- USER: user to login with (ssh)
-- MPGREPREFIX: multipoint gre cidr address used for node intercommunication
+for the ctr project two machines are required:
+ctrl: it is a linux machine running opennebula, operational layer and deploying scenarios
+node: linux server host which effectively runs virtual machine with qemu images
 
-2. execute build to build ns-3
+please note: this setup requires an linux distribution based on ubuntu 14.04!!!
 
-3. execute deploy HOST (execute the ctrl host first)
+for setting up the framework the following scripts need to be executed:
 
-4. (optional) execute install oplayer HOST to install the operational layer services. Note that you should use the hdb backend for the slapd service
+1. script: bootstrap
+   * needs to be run on your client machine
+   * with this script the user sets up the configuration files in the directory 'config' (will be created by the script) for the ctrl and the node.
+   * the script needs to be run with the following parameter:
+     - TYPE: ctrl or node 
+     - PREFIX: cidr of the current ip address of the host
+     - USER: user to login with (ssh)
+     - MPGREPREFIX: multipoint gre cidr address used for node intercommunication
+   * the parameters will be dumped in text files in the directory config
+   * example parameters for ctrl and host can be found in the directory 'config.examples'
+   
 
+2. script: build
+   * needs to be run on your client machine
+   * this scripts loads the required packages for building ns-3 . the printed list can be dumped in a text file, which then can be used for installing the packages via:
+     a. sudo apt-get update
+     b. sudo apt-get -y install < $(cat dependencies.list)
+   * ns-3 is also available in the ubuntu repository, but it has not been tested yet and some required modules are not available.
+   * in order to build ns-3 the script 'build' needs to be executed a second time.
 
-General notes:
-- This is currently under development and has to be considered highly experimental
-- It is currently not so practical since you have to enter several passwords in order to put everything in place
-- It currently lacks of several consistency checks
-- It needs further testing
+3. script: deploy
+   * needs to be run on your client machine
+   * copies all libraries, which are needed for ns-3, to {ctrl|node}
+   * installs required packages for further functionalities of the framework
+
+4. script: printspec
+   * needs to be run on ctrl with the account 'oneadmin' or 'root'
+   * prints out the following information:
+     - http connection together with the ip address of the node via 'hostname -i'
+     - all available connection with the ip addresses from 'ip addr show'
+     - the corresponding password of the account 'oneadmin' stored in 'var/lib/one/.one/one_auth'

@@ -1,4 +1,4 @@
-dn: cn=__ID__ __NAME__, ou=machines,__SUFFIX__
+dn: cn=__ID__ __NAME__, ou=__OU__,__SUFFIX__
 changetype: add
 cn: __ID__ __NAME__
 gn: __ID__
@@ -7,5 +7,5 @@ objectClass: person
 mail: __EMAIL__
 objectClass: organizationalPerson
 objectClass: inetOrgPerson
-ou: machines
+ou: __OU__
 userPassword: __PASSWORD__

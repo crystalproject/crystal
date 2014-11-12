@@ -1,0 +1,4 @@
+dn: cn=dashboard,ou=groups,__SUFFIX__
+objectClass: groupofnames
+cn: dashboard
+member: cn=dummy,ou=machines,__SUFFIX__
