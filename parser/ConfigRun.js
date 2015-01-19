@@ -203,7 +203,6 @@ function performRun(dbCommands) {
             }
 
             idx = src.indexOf('ssh ');
-        		console.log('idx is: ', idx);
             if (idx != -1){
               src = src.substring('ssh '.length);
               if(event.hasOwnProperty('password') && event.hasOwnProperty('user')){
@@ -211,7 +210,6 @@ function performRun(dbCommands) {
                     var found = false;
               			var intermediate_host, ovswitch, segment;
                     json.segment.forEach(function (seg) {
-                			console.log('running foreach');
                       if(found){ return; }
                       if (utilities.isIpInRange(src, seg.net)) {
                         intermediate_host = seg.pnode[0];
@@ -247,7 +245,7 @@ function performRun(dbCommands) {
 
 
                    // copy bash script to destination via intermediate host
-                   var cmd = util.format('cat < %s | ssh root@%s "sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"cd \"%s\" && cat > \"%s\"\\""', filePath4Event(event, now), intermediate_host, event.password, event.user, src, REMOTE_DIR, fileName4Event(event, now));
+                   var cmd = util.format('cat < %s | ssh root@%s "sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"cd \"%s\" && cat > \"%s\";chmod 755 %s/%s\\""', filePath4Event(event, now), intermediate_host, event.password, event.user, src, REMOTE_DIR, fileName4Event(event, now), REMOTE_DIR, fileName4Event(event, now));
                    if (utilities.exec(cmd) != 0) {
                        status = false;
                       return status;
@@ -278,8 +276,7 @@ function performRun(dbCommands) {
                     var cronCmd = path.join(REMOTE_DIR, fileName4Event(event, now));
 
                     var cronTabCmd = getCrontabEntryCmd(execTime, cronCmd);
-                    if (src.indexOf('ssh ') != -1) {
-			console.log("src.indexof: ", src.indexOf('ssh '));
+                    if (idx != -1) {
                       var sshCmd = util.format('ssh root@%s \"sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"%s\\"\"', intermediate_host, event.password, event.user, src, cronTabCmd);
                     } else {
                       var sshCmd = util.format('ssh root@%s \"%s\"', src, cronTabCmd);
@@ -287,15 +284,15 @@ function performRun(dbCommands) {
                     if (utilities.exec(sshCmd) != 0) {
                         status = false;
                     }
-		if (src.indexOf('ssh ') != -1) {
-                  var cmd = util.format('ssh root@%s ip addr del %s/%s dev %s', intermediate_host, randomIp, netmask, ovswitch);
-                  if (utilities.exec(cmd) != 0) {
-                    status = false;
-                    return false;
-                  } else {
-                    console.log('shelljs command succeeded');
+              		if (src.indexOf('ssh ') != -1) {
+                    var cmd = util.format('ssh root@%s ip addr del %s/%s dev %s', intermediate_host, randomIp, netmask, ovswitch);
+                    if (utilities.exec(cmd) != 0) {
+                      status = false;
+                      return false;
+                    } else {
+                      console.log('shelljs command succeeded');
+                    }
                   }
-		}
 
                     return status;
                 });
@@ -315,7 +312,7 @@ function performRun(dbCommands) {
                     }
                     var cronCmd = path.join(REMOTE_DIR, fileName4Event(event, now));
                     var cronTabCmd = getCrontabEntryCmd(execTime, cronCmd);
-                    if (src.indexOf('ssh ')) {
+                    if (src.indexOf('ssh ') != -1 ) {
                       var sshCmd = util.format('ssh root@%s \"sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"%s\\"\"', intermediate_host, event.password, event.user, src, cronTabCmd);
                     } else {
                       var sshCmd = util.format('ssh root@%s \"%s\"', src, cronTabCmd);
@@ -468,24 +465,18 @@ function createCommandScript(event, dbCommands, now) {
                        mailout = mailout + "echo \"rcpt to: " + email + "\";"
                      });
 
-                            var ipcmd = util.format('ip -4 -o addr | grep service-net |awk \'!/^[0-9]*: ?lo|link\\/ether/ {gsub(\"/\", \" \"); print $4}\'');
-                            var ipret = utilities.execRet(ipcmd);
+                     var ipcmd = util.format('ip -4 -o addr | grep service-net |awk \'!/^[0-9]*: ?lo|link\\/ether/ {gsub(\"/\", \" \"); print $4}\'');
+                     var ipret = utilities.execRet(ipcmd);
 
-                            if (ipret.code != 0) {
-                                status = false;
-                                return status;
-                            }
+                     if (ipret.code != 0) {
+                         status = false;
+                         return status;
+                     }
                     var ctrl_ip = ipret.output;
-			ctrl_ip = utilities.removeEOL(ctrl_ip);
+              			ctrl_ip = utilities.removeEOL(ctrl_ip);
 
-                     console.log("mailout: ", mailout);
-                      //todo pick ctrl ip addr
                      var mailcmd = util.format("{ sleep 5; echo \"ehlo monitor.crystal\"; sleep 3; echo \"mail from: monitor\"; "+mailout+" echo \"DATA\" ; sleep 3; echo -e \"Subject: team %s scores with %s\"; echo; echo; echo; echo .;echo; } | telnet %s 25", score.team, score.weight, ctrl_ip);
 
-
-                    //var mailcmd = util.format('echo \"team %s scores with %s\" | mail %s',score.team, score.weight, emails);
-
-                    console.log("created maili command");
 
                     funcDef = funcDef + util.format(FUNCTION_BODY_SCORE_TEMPLATE, command, score.condition, mailcmd);
 
