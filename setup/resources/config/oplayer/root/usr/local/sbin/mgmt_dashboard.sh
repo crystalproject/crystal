@@ -140,7 +140,7 @@ del_contact() {
 usage() {
   echo -e \
   "Usage: $(basename "${0}") {add|del} NAME || {cadd|cdel} NAME email ou [password]\n" \
-  "NAME : Identifier Name" \
+  "NAME : Identifier Name\n" \
   "ou   : people or machines"
   exit 1
 }
@@ -152,6 +152,19 @@ get_name_by_email() {
   name=($("${LD_SEARCH}" -D "${LOGIN}" -w "${PASS}" -LLL -b "ou=machines,${SUFFIX}" mail="${mail}" givenName sn | awk 'BEGIN{FS=":: ";c="base64 -d"}{if(/\w+:: /) {print $2 |& c; close(c,"to"); c |& getline $2; close(c); printf("%s: %s\n", $1, $2); next} print $0 }'  |grep 'givenName\|sn'| cut -d ':' -f 2 | tr -d ' '))
 
   echo "${name[@]}"
+
+}
+
+get_emails_dash() {
+	local -a emails=($("${LD_SEARCH}" -D "${LOGIN}" -w "${PASS}" -LLL -b "ou=machines,${SUFFIX}" |grep "^mail:"| awk '{print $2}'))
+	local emailout
+
+	for email in ${emails[@]}; do
+		emailout="$emailout,$email"
+	done
+	echo ${emailout#","}
+
+#	ldapsearch -x -b ou=machines,dc=crystal |grep mail: | awk '{print $2}'
 
 }
 
@@ -211,6 +224,9 @@ case ${1} in
     echo "${name}"
     exit 0
     ;;
+  getemails)
+	get_emails_dash	
+	;;
 
   *)
     usage

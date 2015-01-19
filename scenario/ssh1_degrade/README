@@ -1,8 +1,0 @@
-0. Prepare three vms: server, victim and attacker (they are available but it is not yet clear how we distribute these and others). NOTE: suggestions on what to consider when creating vms for a scenario follows later
-1. execute ./setup.sh | multinode: ctrl -> ./setup_ctrl.sh, node -> setup_node.sh
-2. attach server & attacker vm to ssh1-sw0 & victim to ssh1-sw1 (to its corresponding virtual network)
-3. configure on either ssh1-sw0 or ssh1-sw1 (or both) an ip address in the same range (to trigger an inject)
-4. execute ./start.sh in order to interconnect the switches via the network simulator ns3
-5. inject via attacker vm
-6. log in from victim to server and observe the attacker
-7. examine dumps

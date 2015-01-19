@@ -68,7 +68,7 @@ gen_root_rsa() {
       fi
       \"
     else
-      if [[ -f /root.ssh/id_rsa.pub ]]; then
+      if [[ -f /root/.ssh/id_rsa.pub ]]; then
         cp /root/.ssh/id_rsa.pub /tmp/
       else
         ssh-keygen -t rsa -b 4096
@@ -78,6 +78,30 @@ gen_root_rsa() {
   '"
   
 #  ssh -t -o StrictHostKeyChecking=no "${USER}"@"${PREFIX%/*}" bash -c "'sudo ssh-keygen -t rsa -b 4096; sudo cp /root/.ssh/id_rsa.pub /tmp/'"
+}
+
+check_oneadmin_pubkey() {
+  if [[ -z "${1}" ]]; then
+    echo "missing parameter" >&2
+    return 1
+  fi
+
+  local ctrl_host="${1}"
+
+  local ctrl_user=$(grep ^USER "${ctrl_host}" | cut -d '=' -f 2)
+  local ctrl_ip=$(grep ^PREFIX "${ctrl_host}" | cut -d '=' -f 2)
+
+  ssh -t "${ctrl_user}"@"${ctrl_ip%/*}" bash -c "'
+    if [[ ! -f /tmp/oneadmin_id_rsa.pub ]]; then
+      if [[ \$(id -u) != 0 ]]; then
+        sudo bash -c \"
+          cp /var/lib/one/.ssh/id_rsa.pub /tmp/oneadmin_id_rsa.pub
+        \"
+      else
+        cp /var/lib/one/.ssh/id_rsa.pub /tmp/oneadmin_id_rsa.pub
+      fi
+    fi
+    '"
 }
 
 copy_install() {
@@ -132,21 +156,25 @@ declare host=$(echo "${1}" |tr '[:upper:]' '[:lower:]')
 if [[ -f "${BASE_DIR}/config/${host}" ]]; then
   config_parse "${host}"
 
+  ctrl_host=$(get_ctrl)
+
   if [[ "${TYPE}" == "ctrl" ]]; then
     gen_root_rsa
   elif [[ "${TYPE}" == "node" ]]; then
     copy_root_rsa
+    check_oneadmin_pubkey "${ctrl_host}"
   fi
 
   copy_install
   do_remote_install
   if [[ "${TYPE}" == "node" ]]; then
-    ctrl_host=$(get_ctrl)
 
     remote_add_hosts "${ctrl_host}"
     if [[ ${?} -ne 0 ]]; then
       echo "an error occured on adding entry to hosts file. please check that manually" >&2
     fi
+
+    distribute_pubkey_3 "${ctrl_host}" "/tmp/oneadmin_id_rsa.pub" "/var/lib/one/.ssh/authorized_keys"
 
     remote_onehost_add "${ctrl_host}"
     if [[ ${?} -ne 0 ]]; then

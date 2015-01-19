@@ -67,17 +67,17 @@ put_root() {
 }
 
 #######################################
-# add publickey from ctrl-host to the node
+# add oneadmin publickey from ctrl-host to the node
 # Globals:
 #   None
 # Arguments:
-#   ctrl_host: hostname of ctrl host
+#   ctrl_host: path to the ctrl config file
 # Returns:
 #  0: on success
 #  1: error
 #######################################
 
-distribute_pubkey() {
+distribute_one_pubkey() {
   if [[ ${#} -lt 1 ]]; then
     return 1
   fi
@@ -86,6 +86,7 @@ distribute_pubkey() {
   local ctrl_user=$(grep ^USER "${ctrl_host}" | cut -d '=' -f 2)
   local ctrl_ip=$(grep ^PREFIX "${ctrl_host}" | cut -d '=' -f 2)
 
+  # note: check permissions whether youre able to read the pubkey
   scp -o StrictHostKeyChecking=no "${ctrl_user}"@"${ctrl_ip%/*}":/var/lib/one/.ssh/id_rsa.pub /tmp/id_rsa.pub
 
   if [[ $(id -u) != 0 ]];
@@ -108,7 +109,7 @@ distribute_pubkey() {
 # Globals:
 #   None
 # Arguments:
-#   ctrl_host: hostname of ctrl host
+#   ctrl_host: path to the ctrl config file
 #   source_key: path to source
 #   auth_key: path to authorized_keys file
 # Returns:

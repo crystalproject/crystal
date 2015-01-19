@@ -1,0 +1,18 @@
+sudo apt-get -y install < apt_package.list
+sudo apt-get update
+sudo apt-get dist-upgrade
+
+git clone -b rocco ssh://git@src.rdit.ch/crystal.git /tmp/crystal
+cp -r /tmp/crystal/imap $HOME/.
+cd imap
+npm install --prefix . imap
+
+cd $HOME
+cp -r /tmp/crystal/freeboard/ $HOME/.
+cd freeboard
+git clone https://github.com/Freeboard/freeboard.git
+
+cd $HOME
+echo 'nodejs imap4Node.js& chromium --allow-file-access-from-files index.html' > .xinitrc
+
+startx

@@ -199,3 +199,88 @@ http.createServer(function (req, res) {
     
 }).listen(1337, '127.0.0.1');
 console.log('Server running at http://127.0.0.1:1337/');
+
+/*        req.on('end', function() {
+ res.end('ended http con');
+ }); */
+
+
+
+
+
+
+
+// credentials
+/*var server = 'imap.gmail.com';
+ var port = 993;
+ var username = 'blubb.foo@gmail.com';
+ var password = 'Regedit55';
+
+ var credentials = {
+ server: 'imap.gmail.com',
+ port: '993',
+ username: 'blubb.foo@gmail.com',
+ password: 'Regedit55',
+ tls: true
+ }
+
+ { server: 'imap.gmail.com', port: '993', username: 'blubb.foo@gmail.com', password: 'Regedit55'}
+
+ */
+
+
+
+
+
+
+
+/*
+ imap.once('ready', function() {
+ openInbox(function(err, box) {
+
+ if (err) throw err;
+
+ var outputbuffer = new Array;
+
+ var f = imap.seq.fetch('1:*', {
+ bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
+ struct: true
+ });
+
+ f.on('message', function (msg, seqno) {
+ console.log('Message #%d', seqno);
+ var prefix = '(#' + seqno + ') ';
+ msg.on('body', function (stream, info) {
+ var buffer = '';
+ stream.on('data', function (chunk) {
+ buffer += chunk.toString('utf8');
+ });
+ stream.once('end', function () {
+ //                    console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
+ outputbuffer.push(inspect(Imap.parseHeader(buffer)));
+ //                  console.log(inspect(Imap.parseHeader(buffer)));
+ });
+ });
+ /*            msg.once('attributes', function(attrs) {
+ console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
+ });
+ msg.once('end', function () {
+ console.log(prefix + 'Finished');
+ });
+ }); */
+
+                                // msg.once('attributes', function(attrs) {
+                                // console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
+                                // }); */
+
+
+
+			    //        imap.end();
+			    //console.log(outputbuffer.toString());
+			    //outputbuffer.forEach(function(element, index, array){
+			    //console.log("index: ",index,element);
+			    //console.log(element.toString());
+			    //});
+
+
+

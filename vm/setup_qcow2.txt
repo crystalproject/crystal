@@ -1,0 +1,28 @@
+windows installation image:
+---------------------------
+windows server 2008 R2: http://www.microsoft.com/en-US/download/details.aspx?id=19994
+(dvd contains also other versions of windows server 2008)
+
+windows 7: https://superuser.com/questions/78761/where-can-i-download-windows-7-legally-from-microsoft
+
+kernel modules:
+---------------
+modprobe kvm
+modprobe virtio
+
+
+
+create qcow2 image:
+-------------------
+qemu-img create -f qcow2 -o preallocation=metadata virtio_disk.qcow2 35G
+for better performance use '-o preallocation=metadata'
+
+for better i/o performance please read the following blog entries:
+http://itscblog.tamu.edu/improve-disk-io-performance-in-kvm/
+http://kashyapc.com/2011/12/02/little-more-disk-io-perf-improvement-with-fallocateing-a-qcow2-disk/
+
+
+windows driver for virtio disk:
+-------------------------------
+web page: http://www.linux-kvm.org/page/WindowsGuestDrivers/Download_Drivers
+iso download: https://alt.fedoraproject.org/pub/alt/virtio-win/latest/images/

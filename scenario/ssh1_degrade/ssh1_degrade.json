@@ -1,0 +1,69 @@
+{
+    "base_path": "/home/user/base",
+    "image_path": "images",
+    "event_path": "events",
+    "output_path": "/home/user/base/stage",
+    "segment": [
+        {
+            "label": "ssh1-network",
+            "net": "10.1.0.0/24",
+            "ovswitch": "ssh1-net",
+            "pnode": [
+                "host1",
+                "host2"
+            ],
+            "host": [
+                {
+                    "label": "ssh1-victim",
+                    "ip": [
+                        "10.1.0.1"
+                    ],
+                    "os": "ubuntu_server_14.04_ssh1_victim",
+                    "major patch": "14.04",
+                    "architecture": "x86_64",
+                    "memory": "1024",
+                    "pnode": "host1"
+                },
+                {
+                    "label": "ssh1-attacker",
+                    "ip": [
+                        "10.1.0.2"
+                    ],
+                    "os": "ubuntu_server_14.04_ssh1_attacker",
+                    "major patch": "14.04",
+                    "architecture": "x86_64",
+                    "memory": "1024",
+                    "pnode": "host2"
+                },
+                {
+                    "label": "ssh1-server",
+                    "ip": [
+                        "10.1.0.3"
+                    ],
+                    "os": "ubuntu_server_14.04_ssh1_server",
+                    "major patch": "14.04",
+                    "architecture": "x86_64",
+                    "memory": "1024",
+                    "pnode": "host2"
+                }
+            ]
+        }
+    ],
+    "event": [
+        {
+            "label": "mitm",
+            "time": [
+                "1m00s"
+            ],
+            "src": "ssh 10.1.0.2",
+            "user": "user",
+            "password": "password",
+            "action": [
+                {
+                    "label": "do_mitm",
+                    "command": "sudo ettercap -q -T --mitm ARP -i eth0 -F /usr/share/ettercap/filter.ef"
+                }
+            ]
+        }
+    ]
+}

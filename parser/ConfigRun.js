@@ -1,4 +1,3 @@
-var sh = require('shelljs');
 var fs = require('fs');
 var util = require('util');
 var os = require('os');
@@ -7,8 +6,8 @@ var mkdirp = require('mkdirp');
 var sqlite3 = require('sqlite3');
 
 
+var utilities = require('./ConfigUtilities');
 var validator = require('./ConfigValidator');
-var setup = require('./ConfigSetup');
 
 var EOL = os.EOL;
 
@@ -19,18 +18,34 @@ var FILEFLAG = 'w';
 var FILEMODE = '0777';
 var REMOTE_DIR = '/tmp';
 
-var FUNCHEADER =
+var BASH_SCRIPT_HEADER = '#!/bin/bash' + EOL + EOL;
+
+var FUNCTION_DEFINITIONS_HEADER =
+    '###################################' + EOL +
+    '###### function definitions #######' + EOL +
+    '###################################' + EOL + EOL;
+
+var FUNCTION_CALLS_HEADER =
+    '#############################' + EOL +
+    '###### function calls #######' + EOL +
+    '#############################' + EOL + EOL;
+
+
+// template for function header in bash scripts
+var FUNCTION_HEADER_TEMPLATE =
     '#### %s ####' + EOL +
     '%s() {' + EOL;
 
-var FUNCBODY_ACTION =
+// template for function body for action function
+var FUNCTION_BODY_ACTION_TEMPLATE =
     'RETOUT=$(%s)' + EOL +
     'RETVAL=${?}' + EOL +
     'echo ${RETOUT}' + EOL +
     'return ${RETVAL}' + EOL +
     '}' + EOL + EOL;
 
-var FUNCBODY_SCORE =
+// template for function body for score function
+var FUNCTION_BODY_SCORE_TEMPLATE =
     'RETOUT=$(%s)' + EOL +
     'RETVAL=${?}' + EOL +
     'if [[ %s ]]; then' + EOL +
@@ -38,31 +53,34 @@ var FUNCBODY_SCORE =
     'fi' + EOL +
     '}' + EOL + EOL;
 
-//(crontab -l ; echo "0 * * * * hupChannel.sh") 2>&1 | grep -v "no crontab" | sort | uniq | crontab -
-//bin/bash -c 'echo "$0" "$1"' foo bar
 
-var totalQueries = 0;
-var queriesPerformed = 0;
-var commands = {};
-
+//
+// Fetches date from the malware and verification table.
+// The db queries are done asynchronously. when all queries are
+// done (and the requested data is stored) the script continues
+// synchronously.
+//
+//
 function getDataFromDB() {
 
-    var dbpath = path.join(json['base_path'], DB_NAME);
+    var dbpath = path.join(json.base_path, DB_NAME);
     console.log('using db: ' + dbpath);
     var db = new sqlite3.Database(dbpath);
+    var dbData = {dbCommands: {}, totalQueries: 0, queriesCounter: 0};
 
-    // eval number of queries
+    // eval number of queries which have to be done.
+    // this is the number of actions and scores which have no command set.
     if (json.hasOwnProperty('event')) {
-        json['event'].forEach(function (event) {
+        json.event.forEach(function (event) {
             if (event.hasOwnProperty('action')) {
-                event['action'].forEach(function (action) {
-                    if (validator.isNullOrEmpty(action['command'])) {
-                        totalQueries++;
+                event.action.forEach(function (action) {
+                    if (utilities.isNullOrEmpty(action.command)) {
+                        dbData.totalQueries++;
                     }
                     if (action.hasOwnProperty('score')) {
-                        action['score'].forEach(function (score) {
-                            if (validator.isNullOrEmpty(score['command'])) {
-                                totalQueries++;
+                        action.score.forEach(function (score) {
+                            if (utilities.isNullOrEmpty(score.command)) {
+                                dbData.totalQueries++;
                             }
                         })
                     }
@@ -71,22 +89,25 @@ function getDataFromDB() {
         });
     }
 
-    console.log('db queries to be performed: ' + totalQueries);
+    console.log('db queries to be performed: ' + dbData.totalQueries);
 
-    if (totalQueries == 0) {
-        finalizeRun(commands);
+    // now execute the db queries (asynchronosly)
+    if (dbData.totalQueries == 0) {
+        runSync(dbData.dbCommands);
     } else {
         if (json.hasOwnProperty('event')) {
-            json['event'].forEach(function (event) {
+            json.event.forEach(function (event) {
                 if (event.hasOwnProperty('action')) {
-                    event['action'].forEach(function (action) {
-                        if (validator.isNullOrEmpty(action['command'])) {
-                            queryDB(db, action ['label'], 'malware', 'action');
+                    event.action.forEach(function (action) {
+                        if (utilities.isNullOrEmpty(action.command)) {
+                            // action: query malware table
+                            queryDB(db, dbData, action.label, 'malware', 'action');
                         }
                         if (action.hasOwnProperty('score')) {
-                            action['score'].forEach(function (score) {
-                                if (validator.isNullOrEmpty(score['command'])) {
-                                    queryDB(db, score['label'], 'verification', 'verification_action');
+                            action.score.forEach(function (score) {
+                                if (utilities.isNullOrEmpty(score.command)) {
+                                    // score: query verification table
+                                    queryDB(db, dbData, score.label, 'verification', 'verification_action');
                                 }
                             })
                         }
@@ -97,7 +118,12 @@ function getDataFromDB() {
     }
 }
 
-function queryDB(db, label, table, field) {
+//
+// Performs a db query. The query is asynchronous. If all queries
+// are finished the script continues to run synchronously.
+//
+//
+function queryDB(db, dbData, label, table, field) {
 
     var query = util.format('select %s from %s where name = \'%s\';', field, table, label);
     console.log('db query: ' + query);
@@ -112,28 +138,28 @@ function queryDB(db, label, table, field) {
         }
 
         if (rows[0] == undefined) {
-            console.error('cannot get images info for host/gateway' + label);
+            console.error('cannot get ' + field + ' for ' + label + ' from table ' + table);
             db.close();
             process.exit(1);
         }
 
 
         console.log('db query returned : ' + rows[0][field]);
-        commands[label] = rows[0][field];
+        dbData.dbCommands[label] = rows[0][field];
 
-        if (++queriesPerformed == totalQueries) {
+        if (++dbData.queriesCounter == dbData.totalQueries) {
 
             console.log('all DB queries done');
             db.close();
-            // all queries done: continue with setup
-            finalizeRun(commands);
+            // all queries done: continue with script
+            runSync(dbData.dbCommands);
         }
     });
 }
 
 
 var json;
-function run(jsonData) {
+function doRun(jsonData) {
 
     json = jsonData;
 
@@ -142,64 +168,168 @@ function run(jsonData) {
     return true;
 }
 
-function finalizeRun(dbData) {
-    if (doRun(dbData)) {
+//
+// executes the RUN mode operations. Is called when
+// all db queries have finished.
+//
+//
+function runSync(dbCommands) {
+    if (performRun(dbCommands)) {
         console.log('RUN succeeded');
     } else {
         process.exit(1);
     }
 }
 
-function doRun(dbData) {
+function performRun(dbCommands) {
+	console.log('perform run executed');
 
     var status = true;
 
     if (json.hasOwnProperty('event')) {
-        json['event'].every(function (event) {
+        json.event.every(function (event) {
 
+            // create the  bash script
             var now = new Date().getTime();
-            if (!createActionFile(event, dbData, now)) {
+
+            if (!createCommandScript(event, dbCommands, now)) {
                 status = false;
             }
 
-            var src = event['src'];
+            var src = event.src;
             var idx = src.indexOf('pnode ');
             if (idx != -1) {
                 src = src.substring('pnode '.length);
             }
 
-            // copy command file to remote location
+            idx = src.indexOf('ssh ');
+        		console.log('idx is: ', idx);
+            if (idx != -1){
+              src = src.substring('ssh '.length);
+              if(event.hasOwnProperty('password') && event.hasOwnProperty('user')){
+                if (json.hasOwnProperty('segment')) {
+                    var found = false;
+              			var intermediate_host, ovswitch, segment;
+                    json.segment.forEach(function (seg) {
+                			console.log('running foreach');
+                      if(found){ return; }
+                      if (utilities.isIpInRange(src, seg.net)) {
+                        intermediate_host = seg.pnode[0];
+                  			console.log('intermediate host is: ', intermediate_host);
+                        ovswitch = seg.ovswitch;
+                  			segment = seg;
+                        found = true;
+                      }
+                    });
+                    if(found && intermediate_host.length > 0){
+
+              			console.log("copy via intermediate host");
+                    
+                    // grab used ips
+			              var ipAddresses = validator.validateIpAddresses();
+
+                   // make sure intermediate host can reach the network
+                   var netmask = utilities.getBitmaskFromCidr(segment.net);
+                   var randomIp = utilities.getUnusedIpAddressInRange(segment.net, ipAddresses);
+                   if (!randomIp) {
+                    console.error('could not obtain unused ip address in ' + segment.net);
+                    status = false;
+                    return false;
+                  }
+
+                  var cmd = util.format('ssh root@%s ip addr add %s/%s dev %s', intermediate_host, randomIp, netmask, ovswitch);
+                  if (utilities.exec(cmd) != 0) {
+                    status = false;
+                    return false;
+                  } else {
+                    console.log('shelljs command succeeded');
+                  }
+
+
+                   // copy bash script to destination via intermediate host
+                   var cmd = util.format('cat < %s | ssh root@%s "sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"cd \"%s\" && cat > \"%s\"\\""', filePath4Event(event, now), intermediate_host, event.password, event.user, src, REMOTE_DIR, fileName4Event(event, now));
+                   if (utilities.exec(cmd) != 0) {
+                       status = false;
+                      return status;
+                   }
+
+                    }
+                  }
+                }
+            } else {
+
+            // copy script to remote location
             var cmd = util.format('scp %s root@%s:%s', filePath4Event(event, now), src, REMOTE_DIR);
-            if (setup.exec(cmd) != 0) {
+            if (utilities.exec(cmd) != 0) {
                 status = false;
                 return status;
             }
+            }
 
-            // make file executable
-            /*
-             var remoteFile = path.join(REMOTE_DIR,fileName4Event(event));
-             var cmd = util.format('ssh root@%s chmod +x %s',src, remoteFile);
-             if (setup.exec(cmd) != 0) {
-             status = false;
-             return status;
-             }
-             */
             // create crontab entries
             if (event.hasOwnProperty('time')) {
-                event['time'].every(function (time) {
+                event.time.every(function (time) {
 
-                    var execTime = getExecTime(time);
-                    if (execTime == undefined) {
+                    var execTime = getExecTimeFromDelta(time);
+                    if (!execTime) {
                         status = false;
                         return status;
                     }
                     var cronCmd = path.join(REMOTE_DIR, fileName4Event(event, now));
 
                     var cronTabCmd = getCrontabEntryCmd(execTime, cronCmd);
-                    var sshCmd = util.format('ssh root@%s \"%s\"', src, cronTabCmd);
-                    if (setup.exec(sshCmd) != 0) {
+                    if (src.indexOf('ssh ') != -1) {
+			console.log("src.indexof: ", src.indexOf('ssh '));
+                      var sshCmd = util.format('ssh root@%s \"sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"%s\\"\"', intermediate_host, event.password, event.user, src, cronTabCmd);
+                    } else {
+                      var sshCmd = util.format('ssh root@%s \"%s\"', src, cronTabCmd);
+                    }
+                    if (utilities.exec(sshCmd) != 0) {
                         status = false;
                     }
+		if (src.indexOf('ssh ') != -1) {
+                  var cmd = util.format('ssh root@%s ip addr del %s/%s dev %s', intermediate_host, randomIp, netmask, ovswitch);
+                  if (utilities.exec(cmd) != 0) {
+                    status = false;
+                    return false;
+                  } else {
+                    console.log('shelljs command succeeded');
+                  }
+		}
+
+                    return status;
+                });
+            }
+
+            if (!status) {
+                return status;
+            }
+
+            if (event.hasOwnProperty('absoluteTime')) {
+                event.absoluteTime.every(function (time) {
+
+                    var execTime = validator.validateEventAbsoluteTime(time);
+                    if (!execTime) {
+                        status = false;
+                        return status;
+                    }
+                    var cronCmd = path.join(REMOTE_DIR, fileName4Event(event, now));
+                    var cronTabCmd = getCrontabEntryCmd(execTime, cronCmd);
+                    if (src.indexOf('ssh ')) {
+                      var sshCmd = util.format('ssh root@%s \"sshpass -p \"%s\" ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no %s@%s \\"%s\\"\"', intermediate_host, event.password, event.user, src, cronTabCmd);
+                    } else {
+                      var sshCmd = util.format('ssh root@%s \"%s\"', src, cronTabCmd);
+                    }
+                    if (utilities.exec(sshCmd) != 0) {
+                        status = false;
+                    }
+                  var cmd = util.format('ssh root@%s ip addr del %s/%s dev %s', intermediate_host, randomIp, netmask, ovswitch);
+                  if (utilities.exec(cmd) != 0) {
+                    status = false;
+                    return false;
+                  } else {
+                    console.log('shelljs command succeeded');
+                  }
 
                     return status;
                 });
@@ -212,51 +342,68 @@ function doRun(dbData) {
     return status;
 }
 
+//
+// Returns the events directory path.
+//
 function eventPath() {
-    return path.join(json['base_path'], json['event_path']);
+    return path.join(json.base_path, json.event_path);
 }
 
+//
+// Returns the bash script file name for the event.
+// the file name contains a timestamp to avoid overwriting of script files.
+//
 function fileName4Event(event, ts) {
-    return event['label'] + ts + FILE_EXT;
+    return event.label + ts + FILE_EXT;
 }
 
+//
+// Returns the file path of the bash script file.
+//
 function filePath4Event(event, ts) {
 
-    var fileName = path.join(eventPath(), fileName4Event(event, ts));
-
-    return fileName;
+    return path.join(eventPath(), fileName4Event(event, ts));
 }
 
 
-function createActionFile(event, dbData, now) {
+//
+// Creates the bash script with the commands for the actions and scores.
+//
+//
+function createCommandScript(event, dbCommands, now) {
 
     var status = true;
+
     var pa = eventPath();
     var fileName = filePath4Event(event, now);
 
-    var functionDefinitions =
-        '#!/bin/bash' + EOL + EOL +
-        '###################################' + EOL +
-        '###### function definitions #######' + EOL +
-        '###################################' + EOL + EOL;
+    var functionDefinitions = BASH_SCRIPT_HEADER + FUNCTION_DEFINITIONS_HEADER;
 
-    var functionCalls =
-        '#############################' + EOL +
-        '###### function calls #######' + EOL +
-        '#############################' + EOL + EOL;
+    var functionCalls = FUNCTION_CALLS_HEADER;
 
     if (event.hasOwnProperty('action')) {
-        event['action'].forEach(function (action) {
+        event.action.every(function (action) {
 
-            var funcName = action['label'];
-            var command = action['command'];
+            // action's label becomes the function name
+            var funcName = action.label;
+            var command = action.command;
             if (!command) {
-                command = dbData[funcName];
+                // if command is not set, the command is defined by the DB
+                command = dbCommands[funcName];
+                if (!command) {
+                    console.error('did not find command for ' + funcName + ' in DB');
+                    status = false;
+                    return status;
+                }
             }
-            var funcDef = util.format(FUNCHEADER, funcName, funcName);
+            // setup function header
+            var funcDef = util.format(FUNCTION_HEADER_TEMPLATE, funcName, funcName);
+            // setup function call part
             var funcCall = funcName;
+            // iterate over options, each option is integrated in the function body
+            // and the function call
             if (action.hasOwnProperty('options')) {
-                var options = action['options'];
+                var options = action.options;
                 var cnt = 1;
                 for (var key in options) {
 
@@ -266,23 +413,34 @@ function createActionFile(event, dbData, now) {
                     cnt++;
                 }
             }
-            funcDef = funcDef + util.format(FUNCBODY_ACTION, command);
+            // finalize function body
+            funcDef = funcDef + util.format(FUNCTION_BODY_ACTION_TEMPLATE, command);
 
+            // add new function definition to the already existing functions
             functionDefinitions = functionDefinitions + funcDef;
+            // add new function call to the already existing function calls
             functionCalls = functionCalls + funcCall + EOL + EOL;
 
+            // handle scores
             if (action.hasOwnProperty('score')) {
-                action['score'].forEach(function (score) {
+                action.score.every(function (score) {
 
-                    var funcName = score['label'];
-                    var command = score['command'];
+                    // score's label becomes the function name
+                    var funcName = score.label;
+                    var command = score.command;
                     if (!command) {
-                        command = dbData[funcName];
+                        // if command is not set, the command is defined by the DB
+                        command = dbCommands[funcName];
+                        if (!command) {
+                            console.error('did not find command for ' + funcName + ' in DB');
+                            status = false;
+                            return status;
+                        }
                     }
-                    var funcDef = util.format(FUNCHEADER, funcName, funcName);
+                    var funcDef = util.format(FUNCTION_HEADER_TEMPLATE, funcName, funcName);
                     var funcCall = funcName;
                     if (score.hasOwnProperty('options')) {
-                        var options = score['options'];
+                        var options = score.options;
                         var cnt = 1;
                         for (var key in options) {
 
@@ -292,22 +450,66 @@ function createActionFile(event, dbData, now) {
                             cnt++;
                         }
                     }
-		    var mailcmd = util.format('echo \"team %s scores with %s\"', score['team'], score['weight']) + EOL;
-                    //var mailcmd = 'echo \"bla\"';
-                    funcDef = funcDef + util.format(FUNCBODY_SCORE, command, score['condition'], mailcmd);
 
+                    // todo: team is an array. is below mailcmd correct?
+                    //var mailcmd = util.format('echo \"team %s scores with %s\"', score.team, score.weight) + EOL;
+
+                        //get email addresses
+                     var addrcmd = util.format('/usr/local/sbin/mgmt_dashboard.sh getemails');
+                     var returnobj = utilities.execRet(addrcmd)
+                     if (returnobj.code != 0) {
+                      status = false;
+                      return false;
+                      }
+                     var emails = returnobj.output.split(",");
+                     var mailout = "";
+
+                     emails.forEach(function(email){
+                       mailout = mailout + "echo \"rcpt to: " + email + "\";"
+                     });
+
+                            var ipcmd = util.format('ip -4 -o addr | grep service-net |awk \'!/^[0-9]*: ?lo|link\\/ether/ {gsub(\"/\", \" \"); print $4}\'');
+                            var ipret = utilities.execRet(ipcmd);
+
+                            if (ipret.code != 0) {
+                                status = false;
+                                return status;
+                            }
+                    var ctrl_ip = ipret.output;
+			ctrl_ip = utilities.removeEOL(ctrl_ip);
+
+                     console.log("mailout: ", mailout);
+                      //todo pick ctrl ip addr
+                     var mailcmd = util.format("{ sleep 5; echo \"ehlo monitor.crystal\"; sleep 3; echo \"mail from: monitor\"; "+mailout+" echo \"DATA\" ; sleep 3; echo -e \"Subject: team %s scores with %s\"; echo; echo; echo; echo .;echo; } | telnet %s 25", score.team, score.weight, ctrl_ip);
+
+
+                    //var mailcmd = util.format('echo \"team %s scores with %s\" | mail %s',score.team, score.weight, emails);
+
+                    console.log("created maili command");
+
+                    funcDef = funcDef + util.format(FUNCTION_BODY_SCORE_TEMPLATE, command, score.condition, mailcmd);
+
+                    // add new score function to the already existing function definitions and function calls.
                     functionDefinitions = functionDefinitions + funcDef;
                     functionCalls = functionCalls + funcCall + EOL + EOL;
 
+                    return status;
                 });
             }
+
+            return status;
         });
 
+        if (!status) {
+            return status;
+        }
 
         var fd;
         try {
             mkdirp.sync(pa);
             fd = fs.openSync(fileName, FILEFLAG, FILEMODE);
+            // write file:
+            // 1st the function bodies, 2nd the function calls to have a nice looking bash script
             fs.writeSync(fd, functionDefinitions + functionCalls);
 
         } catch (ex) {
@@ -325,37 +527,11 @@ function createActionFile(event, dbData, now) {
     }
 
     return status;
-
-    /*
-
-     action label gibt funktionsname
-     Funktionsdefinitionen
-     add_ip {
-     local DST=${1}
-     local SPEED=${2}
-
-     RETOUT=$(ip addr add)
-     RETVAL=${RETOUT}
-     echo ${RETOUT}
-     return ${RETVAL}
-     }
-
-     dann Auftrufe
-
-     add_ip cmm 100
-
-     für score das gleiche
-     team, condition, weight
-
-     kein echo und return, sondern condition
-     if  [[ condition ]]; then
-
-
-     */
-
 }
 
 //
+// Returns the command to add a crontab entry to run 'cmd' at 'execTime'
+// and executes cmd.
 //
 //
 function getCrontabEntryCmd(execTime, cmd) {
@@ -368,56 +544,23 @@ function getCrontabEntryCmd(execTime, cmd) {
 //
 // Returns Date object with delta from current time.
 //
-// Return: Date object if successful, undefined otherwise
+// Return: Date object if successful, null otherwise
 //
-function getExecTime(delta) {
+function getExecTimeFromDelta(delta) {
 
-    // delta must match pattern <minutes>m<seconds>s
 
-    var chars = ['h', 'm', 's'];
-
-    var hours = 0;
-    var minutes = 0;
-    var seconds = 0;
-
-    var idx0 = 0;
-    var idx1 = 0;
-
-    for (var i = 0; i < chars.length; i++) {
-        idx1 = delta.indexOf(chars[i]);
-        if (idx1 != -1) {
-            var str = delta.substring(idx0, idx1);
-            var val = parseInt(str);
-            if (isNaN(val)) {
-                console.log('invalid format of time: ' + delta);
-                return undefined;
-            }
-            switch (chars[i]) {
-                case 'h':
-                    hours = val;
-                    break;
-                case 'm':
-                    minutes = val;
-                    break;
-                case 's':
-                    seconds = val;
-                    break;
-                default:
-                    break;
-            }
-
-            idx0 = idx1 + 1;
-        }
+    var time = validator.validateEventRelativeTime(delta);
+    if (!time) {
+        return null;
     }
 
     // got days, minutes and seconds, now add them to 'now'
     var now = new Date();
-    var milliseconds = ((((hours * 60) + minutes) * 60) + seconds) * 1000;
-    var execTime = new Date(now.getTime() + milliseconds);
+    var milliseconds = ((((time.hours * 60) + time.minutes) * 60) + time.seconds) * 1000;
 
-    return execTime;
+    return new Date(now.getTime() + milliseconds);
 }
 
 
-exports.run = run;
+exports.doRun = doRun;
 

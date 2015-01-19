@@ -48,3 +48,66 @@ replace(){
     sed -i 's/'"${PATTERN}"'/'"${REPLACE}"'/g' "${INFILE}"
   fi
 }
+
+#######################################
+# Append STRING to line matching PATTERN
+#  on FILE
+#
+# Globals:
+#   None
+# Arguments:
+#   FILE:    File to operate on
+#   PATTERN: Pattern to match
+#   STRING: String to append
+# Returns:
+#   0 on success
+#   >=1 on err
+#   
+#######################################
+
+append_line(){
+  if [[ -z "${1}" || -z "${2}" || -z "${3}" || ${#} -ne 3 ]]; then
+    return 1;
+  fi
+
+  local file pattern string;
+  file="${1}"
+  pattern="${2}"
+  string="${3}"
+
+  sed -i "/${pattern}/ s/$/\ ${string}/" "${file}"
+
+  return ${?}
+}
+
+#######################################
+# Remove STRING from line matching PATTERN
+#  on FILE
+#
+# Globals:
+#   None
+# Arguments:
+#   FILE:    File to operate on
+#   PATTERN: Pattern to match
+#   STRING: String to delete
+# Returns:
+#   0 on success
+#   >=1 on err
+#   
+#######################################
+
+delete_from_line(){
+  if [[ -z "${1}" || -z "${2}" || -z "${3}" || ${#} -ne 3 ]]; then
+    return 1;
+ fi
+
+ local file pattern string;
+ file="${1}"
+ pattern="${2}"
+ string="${3}"
+
+#  sed -ie "/${line}/ s/\(\<${string}\>\(\s\|,\|,\s\)\|\(\s\|,\|,\s\)\<${string}\>$\)//" "${file}"
+  sed -ie "/${pattern}/ s/\(\s\<${string}\>\(,\|\s\)\|\(\s\|,\|,\s\)\<${string}\>$\)/\ /;/${pattern}/ s/\s*$//; /${pattern}/ s/,$//" "${file}"
+
+  return ${?}
+}
